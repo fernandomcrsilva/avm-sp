@@ -16,3 +16,6 @@ __pycache__/
 # matrículas reais com dados pessoais de terceiros (README: "Não publicar")
 testes/
 .openai/
+
+# saída do build (npm run build); a fonte é site/
+dist/

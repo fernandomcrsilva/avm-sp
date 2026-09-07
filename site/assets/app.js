@@ -176,7 +176,7 @@ function getInputs() {
 }
 
 function selectedModelKey(enabled) {
-  return model.variable_order.filter((variable) => enabled.includes(variable)).join("+");
+  return AvmPredict.modelKey(model, enabled);
 }
 
 function patternLabel(code) {
@@ -187,27 +187,7 @@ function rawPrediction(v) {
   const modelKey = selectedModelKey(v.enabledVariables);
   const selected = model.models[modelKey];
   if (!selected) throw new Error("Combinação de variáveis sem modelo treinado.");
-
-  const logArea = Math.log(v.area / 80);
-  const logFiscal = Math.log(v.fiscal / 3000);
-  const numericValues = {
-    log_area: logArea,
-    log_area2: logArea ** 2,
-    log_area3: logArea ** 3,
-    age: v.age,
-    age2: (v.age / 10) ** 2,
-    log_fiscal: logFiscal,
-    log_fiscal2: logFiscal ** 2,
-  };
-
-  let logValue = selected.intercept;
-  selected.numeric.features.forEach((feature, index) => {
-    const standardized = (numericValues[feature] - selected.numeric.means[index]) / selected.numeric.scales[index];
-    logValue += standardized * selected.numeric.coefficients[index];
-  });
-  if (v.enabledVariables.includes("pattern")) {
-    logValue += selected.category_coefficients.pattern?.[v.pattern] || 0;
-  }
+  const logValue = AvmPredict.logPrice(model, modelKey, v); // equação única, testada contra o Python
 
   return {
     value: Math.exp(logValue),
@@ -548,7 +528,7 @@ async function init() {
   $("download-xlsx").addEventListener("click", downloadXlsx);
 
   try {
-    const response = await fetch("assets/model.json");
+    const response = await fetch(document.getElementById("model-url").href); // nome com fingerprint, injetado pelo build
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     model = await response.json();
     $("header-version").textContent = model.version;
