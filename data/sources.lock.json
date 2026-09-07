@@ -1,0 +1,23 @@
+{
+  "$comment": "Fontes oficiais do treino. train_model.py recusa rodar se o sha256 do arquivo em data/raw/ divergir. Ao publicar nova base, atualize url/published/sha256 aqui no mesmo commit do novo model.json.",
+  "sources": {
+    "itbi": {
+      "name": "Guias de ITBI pagas — Município de São Paulo",
+      "publisher": "Secretaria Municipal da Fazenda de São Paulo",
+      "page_url": "https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501",
+      "download_url": "https://prefeitura.sp.gov.br/documents/d/fazenda/guias-de-itbi-pagas-27082026-xls-xlsx",
+      "published": "2026-08-27",
+      "file": "data/raw/itbi_sp_2026.xlsx",
+      "sha256": "fab5fbe8815c9fd940f667c3e8739c4b5a9a0d228776af43d68472c48ffca533"
+    },
+    "pgv": {
+      "name": "Anexos I e II da Lei Municipal 18.330/2025 — PGV 2026",
+      "publisher": "Prefeitura do Município de São Paulo",
+      "page_url": "https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025",
+      "download_url": null,
+      "published": "2025-11-11",
+      "file": "data/raw/pgv_18330_anexos.pdf",
+      "sha256": "4a043e5ceb80d550e37bbdcd478cf807f74b7d51aae2742fe95938460fa39fd7"
+    }
+  }
+}
