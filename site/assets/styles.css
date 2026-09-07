@@ -103,8 +103,6 @@ input:focus, select:focus { background: #fff; border-color: var(--cyan); }
 .input-action button:disabled { cursor: wait; opacity: .62; }
 .form-grid { display: grid; gap: 12px; }
 .form-grid.two { grid-template-columns: repeat(2, 1fr); }
-.form-grid.three { grid-template-columns: repeat(3, 1fr); }
-.form-grid.five { grid-template-columns: repeat(5, 1fr); }
 .input-unit { position: relative; }
 .input-unit input { padding-right: 42px; }
 .input-unit span { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .76rem; pointer-events: none; }
@@ -254,8 +252,7 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
   .model-pill { display: none; }
   .workspace { grid-template-columns: 1fr; }
   .result-panel { position: static; }
-  .form-grid.five { grid-template-columns: repeat(3,1fr); }
-  .validation-grid { grid-template-columns: repeat(4,1fr); }
+    .validation-grid { grid-template-columns: repeat(4,1fr); }
 }
 
 @media (max-width: 720px) {
@@ -269,7 +266,6 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
   .form-panel, .result-panel { padding: 19px; }
   .document-reader { grid-template-columns: 1fr; }
   .document-reader .file-button, .reader-status { grid-column: 1; }
-  .form-grid.two, .form-grid.three, .form-grid.five { grid-template-columns: repeat(2,1fr); }
   .form-actions, .result-actions { align-items: stretch; flex-direction: column; }
   .report-cover { flex-direction: column; }
   .report-result { text-align: left; }

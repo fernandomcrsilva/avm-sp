@@ -58,12 +58,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Sem token, sem preview
-        id: token
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::notice::CLOUDFLARE_API_TOKEN ausente: preview pulado"; echo "ok=false" >> "$GITHUB_OUTPUT"; else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
       - name: wrangler versions upload (preview)
-        if: steps.token.outputs.ok == 'true'
         id: upload
         run: |
           out=$(npx wrangler versions upload --message "PR #${{ github.event.pull_request.number }} ${{ github.sha }}" 2>&1 | grep -viE "token|authorization")
@@ -72,7 +67,6 @@ jobs:
           id=$(echo "$out" | grep -oE 'Worker Version ID: [0-9a-f-]+' | awk '{print $4}')
           echo "url=$url" >> "$GITHUB_OUTPUT"; echo "id=$id" >> "$GITHUB_OUTPUT"
       - name: Comenta a URL de preview no PR
-        if: steps.token.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

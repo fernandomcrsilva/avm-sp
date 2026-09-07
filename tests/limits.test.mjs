@@ -22,8 +22,9 @@ test("cada limite gera um motivo", () => {
   assert.equal(AvmPredict.limitReasons(model, { ...ok, pattern: "99" }).length, 1);
   assert.equal(AvmPredict.limitReasons(model, { ...ok, fiscal: a.fiscal_vm2t_brl[1] * 2 }).length, 1);
   assert.equal(AvmPredict.limitReasons(model, { ...ok, declared: false }).length, 1);
-  assert.match(AvmPredict.priceReason(model, a.price_brl[1] * 2), /fora da faixa de preços/);
-  assert.match(AvmPredict.priceReason(model, a.price_brl[0] / 2), /fora da faixa de preços/);
+  assert.match(AvmPredict.priceReason(model, a.price_brl[1] * 2).text, /fora da faixa de preços/);
+  assert.equal(AvmPredict.priceReason(model, a.price_brl[0] / 2).code, "price");
+  assert.deepEqual(AvmPredict.limitReasons(model, { ...ok, area: 999, declared: false }).map((r) => r.code), ["area", "declared"]);
 });
 
 test("variável desabilitada não é verificada; área vazia com área desabilitada passa", () => {

@@ -18,21 +18,8 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# HTML sem fingerprint: sempre revalidar.
-/
-  Cache-Control: public, max-age=0, must-revalidate
-/index.html
-  Cache-Control: public, max-age=0, must-revalidate
-/metodologia
-  Cache-Control: public, max-age=0, must-revalidate
-/termos
-  Cache-Control: public, max-age=0, must-revalidate
-/privacidade
-  Cache-Control: public, max-age=0, must-revalidate
-/404.html
-  Cache-Control: public, max-age=0, must-revalidate
-/asset-manifest.json
-  Cache-Control: no-store
+# HTML e demais arquivos sem regra própria já recebem o default do Workers Assets:
+# Cache-Control: public, max-age=0, must-revalidate.
 /version.json
   Cache-Control: no-store
 

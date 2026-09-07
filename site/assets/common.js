@@ -41,9 +41,7 @@
       model_version: modelVersion,
     });
     try {
-      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/erro", new Blob([payload], { type: "application/json" }))) {
-        fetch("/api/erro", { method: "POST", body: payload, headers: { "content-type": "application/json" }, keepalive: true }).catch(() => {});
-      }
+      navigator.sendBeacon("/api/erro", new Blob([payload], { type: "application/json" }));
     } catch (_) { /* sem rede: o erro já está na tela */ }
   }
   window.addEventListener("error", (event) => {
