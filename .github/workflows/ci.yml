@@ -1,7 +1,9 @@
 name: ci
 # lint → validador do model.json → paridade Python↔JS e limites → build → deploy.
 # PR: publica uma versão de preview (wrangler versions upload) e comenta a URL.
-# Produção: só em tag v* ou disparo manual (wrangler versions deploy). Nunca da máquina local.
+# Produção: só em tag vX.Y.Z (ou disparo manual em main) e só de commit que já está em main. Nunca da máquina local.
+# Auditoria 2026-09-07: actions fixadas por SHA, GITHUB_TOKEN mínimo, token da Cloudflare só no passo do wrangler,
+# npm ci --ignore-scripts onde há token, build em passo sem token, valores do evento via env (nunca interpolados no shell).
 on:
   pull_request:
     branches: [main]
@@ -12,7 +14,10 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+
+defaults:
+  run:
+    shell: bash # bash -eo pipefail: comando que falha dentro de um pipe derruba o passo
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -23,20 +28,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with: { node-version: 22, cache: npm }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: { python-version: "3.12" }
       - run: npm ci
+      - name: Build (fingerprint + version.json; o lint do wrangler exige dist/)
+        run: npm run build
       - name: Lint (sintaxe JS/Python e config do wrangler)
         run: npm run lint
       - name: Validador de schema do model.json
         run: npm run validate && python3 -m unittest tests.test_validate_model
       - name: Paridade Python↔JS e limites de aplicabilidade
         run: npm test
-      - name: Build (fingerprint + version.json)
-        run: npm run build
       - name: Orçamento de tamanho (JS+CSS inicial < 150 KB brotli)
         run: |
           sudo apt-get install -y -qq brotli >/dev/null
@@ -51,54 +56,77 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: write # só para comentar a URL do preview
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with: { node-version: 22, cache: npm }
-      - run: npm ci
+      - run: npm ci --ignore-scripts # código do PR: sem lifecycle scripts num job que tem o token
+      - run: npm run build # sem token no ambiente
       - name: wrangler versions upload (preview)
         id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.sha }}
         run: |
-          out=$(npx wrangler versions upload --message "PR #${{ github.event.pull_request.number }} ${{ github.sha }}" 2>&1 | grep -viE "token|authorization")
+          out=$(npx wrangler versions upload --message "PR #$PR $SHA" 2>&1 | grep -viE "token|authorization")
           echo "$out"
           url=$(echo "$out" | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1)
           id=$(echo "$out" | grep -oE 'Worker Version ID: [0-9a-f-]+' | awk '{print $4}')
+          test -n "$id"
           echo "url=$url" >> "$GITHUB_OUTPUT"; echo "id=$id" >> "$GITHUB_OUTPUT"
       - name: Comenta a URL de preview no PR
         env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          URL: ${{ steps.upload.outputs.url }}
+          ID: ${{ steps.upload.outputs.id }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "Preview desta revisão: ${{ steps.upload.outputs.url }} (versão \`${{ steps.upload.outputs.id }}\`, com X-Robots-Tag: noindex). Produção não foi alterada."
+          gh pr comment "$PR" --repo "$REPO" --body "Preview desta revisão: $URL (versão \`$ID\`, com X-Robots-Tag: noindex). Produção não foi alterada."
 
   deploy:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency: { group: deploy-production, cancel-in-progress: false }
     environment: production
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      REF: ${{ github.ref_name }}
+      SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { fetch-depth: 0 } # histórico completo: o passo seguinte exige que o commit já esteja em main
+      - name: Só publica tag vX.Y.Z (ou main) de commit que já está em main
+        run: |
+          [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$REF" == main ]] || { echo "::error::ref inválida: $REF"; exit 1; }
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::SHA inválido"; exit 1; }
+          git merge-base --is-ancestor "$SHA" origin/main || { echo "::error::$SHA não está em main"; exit 1; }
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with: { node-version: 22, cache: npm }
-      - run: npm ci
-      - name: Exige o token
-        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN ausente"; exit 1; }
+      - run: npm ci --ignore-scripts
+      - run: npm run build # sem token no ambiente
       - name: wrangler versions upload
         id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          out=$(npx wrangler versions upload --tag "${{ github.ref_name }}" --message "${{ github.ref_name }} ${{ github.sha }}" 2>&1 | grep -viE "token|authorization")
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN ausente"; exit 1; }
+          out=$(npx wrangler versions upload --tag "$REF" --message "$REF $SHA" 2>&1 | grep -viE "token|authorization")
           echo "$out"
           id=$(echo "$out" | grep -oE 'Worker Version ID: [0-9a-f-]+' | awk '{print $4}')
           test -n "$id"; echo "id=$id" >> "$GITHUB_OUTPUT"
       - name: wrangler versions deploy (100%)
-        run: npx wrangler versions deploy "${{ steps.upload.outputs.id }}@100%" -y 2>&1 | grep -viE "token|authorization"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ID: ${{ steps.upload.outputs.id }}
+        run: npx wrangler versions deploy "$ID@100%" -y 2>&1 | grep -viE "token|authorization"
       - name: Confere o que está no ar
         run: |
           sleep 60   # propagação observada: até ~1 min
           curl -fsS --max-time 20 https://avm.heybrain.uk/version.json | tee version.json
-          grep -q "\"git_sha\": \"${{ github.sha }}\"" version.json
+          grep -q "\"git_sha\": \"$SHA\"" version.json
