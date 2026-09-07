@@ -8,5 +8,10 @@
     "validate": "python3 scripts/validate_model.py",
     "check": "npm run validate && python3 -m unittest tests.test_validate_model && npm test && npm run build"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.128.0"
+  }
 }
