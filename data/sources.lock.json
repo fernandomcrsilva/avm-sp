@@ -14,10 +14,11 @@
       "name": "Anexos I e II da Lei Municipal 18.330/2025 — PGV 2026",
       "publisher": "Prefeitura do Município de São Paulo",
       "page_url": "https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025",
-      "download_url": null,
+      "download_url": "https://diariooficial.prefeitura.sp.gov.br/md_epubli_visualizar.php?FRhs6SZ5r6HQXRGerPkxou5heOZ2othv1kZciU33GQOkwzvLzUx_VhFuDlrjFyizPSWmvrGMKsC2SVcfRv6PUU9VN-k8ITcCkc-xGOBYC23eTAbEG7XWj027E3HXHYlf",
       "published": "2025-11-11",
       "file": "data/raw/pgv_18330_anexos.pdf",
-      "sha256": "4a043e5ceb80d550e37bbdcd478cf807f74b7d51aae2742fe95938460fa39fd7"
+      "sha256": "4a043e5ceb80d550e37bbdcd478cf807f74b7d51aae2742fe95938460fa39fd7",
+      "$comment": "download_url é o \"Documento Anexo nº 145975345\" linkado na página da lei (Anexos_PL_1130_25.pdf, Anexos I e II). published = data da lei; o PDF não declara data própria."
     }
   }
 }
