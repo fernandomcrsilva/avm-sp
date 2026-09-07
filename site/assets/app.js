@@ -12,8 +12,11 @@ const number = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 const VARIABLE_LABELS = { area: "Área construída", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
-const EXAMPLE = { address: "Rua Exemplo, 100", cep: "04109-002", area: 78, yearBuilt: 2018, pattern: "22", fiscal: 6500 }; // endereço fictício; o CEP só mostra a região
+const EXAMPLE = { address: "Rua Exemplo, 100", complement: "Apto 100", district: "Vila Mariana", cep: "04109-002", privateArea: 66, area: 78, age: 8, pattern: "22", fiscal: 6500, financing: "SFH", funds: "SBPE" }; // endereço fictício; o CEP só mostra a região
 let calcSeq = 0; // a identificação é assíncrona (hash): só a última estimativa iniciada pode renderizar
+// Faixa plausível da área privativa sobre a construída do IPTU: a construída inclui a fração de comum.
+// ponytail: dois números fixos em vez de tabela por tipologia; servem só para acender um alerta de conferência.
+const PRIVATE_AREA_RATIO = [0.55, 1];
 
 function cepDigits(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 8);
@@ -86,6 +89,7 @@ async function locateAddress() {
     }
     if (!selected.cep) throw new Error("CEP não disponível para este endereço");
     $("cep").value = formatCep(selected.cep);
+    if (selected.district && !$("district").value.trim()) $("district").value = selected.district;
     if (documentReadState) documentReadState.geocode = "OpenStreetMap/Nominatim";
     status.innerHTML = `CEP ${escapeHtml(formatCep(selected.cep))}${selected.district ? ` · ${escapeHtml(selected.district)}` : ""} preenchido. Confira. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
     calculate();
@@ -105,7 +109,7 @@ async function readMatricula(event) {
   try {
     const result = await globalThis.AVMMatricula.read(file, ({ message }) => setReaderStatus("busy", message));
     $("address").value = result.address || "";
-    $("area").value = result.area ? String(result.area) : "";
+    $("private-area").value = result.area ? String(result.area) : "";
     $("cep").value = result.cep ? formatCep(result.cep) : "";
     documentReadState = {
       fileName: result.fileName,
@@ -117,7 +121,7 @@ async function readMatricula(event) {
     };
     const found = [result.address ? "endereço" : null, result.area ? `${result.areaLabel.toLocaleLowerCase("pt-BR")} ${areaNumber.format(result.area)} m²` : null].filter(Boolean);
     const warning = result.warning ? ` ${result.warning}.` : "";
-    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados; a área da matrícula é a privativa, e o modelo usa a área construída do IPTU.${warning}`);
+    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados. A área lida é a privativa da matrícula e foi para o campo dela; o cálculo pede a área construída do IPTU.${warning}`);
     calculate();
   } catch (error) {
     setReaderStatus("error", error.message);
@@ -133,16 +137,23 @@ function activeVariables() {
 }
 
 function getInputs() {
-  const yearBuilt = numericField("year-built");
+  // O usuário informa a idade (manual, item 5); o ano de conclusão é derivado dela e é o que o
+  // domínio de treino verifica em AvmPredict.limitReasons.
+  const age = numericField("age");
   return {
     address: $("address").value.trim(),
+    complement: $("complement").value.trim(),
+    district: $("district").value.trim(),
     cep: formatCep($("cep").value),
     cep8: cepDigits($("cep").value),
+    privateArea: numericField("private-area"),
     area: numericField("area"),
-    yearBuilt,
-    age: Number.isFinite(yearBuilt) ? model.applicability.base_year - yearBuilt : NaN,
+    age,
+    yearBuilt: Number.isFinite(age) ? model.applicability.base_year - age : NaN,
     pattern: String($("pattern").value),
     fiscal: numericField("fiscal"),
+    financing: $("financing").value,
+    funds: $("funds").value,
     declared: $("declared").checked,
     enabledVariables: activeVariables(),
     documentSource: documentReadState ? { ...documentReadState } : null,
@@ -168,6 +179,12 @@ function riskList(v, stats, disabled) {
     "Condomínio, dormitórios, banheiros, vagas, andar, vista e estado de conservação não entram no modelo.",
     "O modelo usa a área construída do cadastro do IPTU. Se a área informada foi a privativa da matrícula, a estimativa parte de uma definição diferente da usada no treino.",
   ];
+  if (Number.isFinite(v.privateArea) && Number.isFinite(v.area) && v.area > 0) {
+    const ratio = v.privateArea / v.area;
+    if (ratio < PRIVATE_AREA_RATIO[0] || ratio > PRIVATE_AREA_RATIO[1]) {
+      risks.push(`Área privativa (${areaNumber.format(v.privateArea)} m²) e área construída (${areaNumber.format(v.area)} m²) em proporção atípica: confira se a construída é a do cadastro do IPTU e a privativa é a da matrícula.`);
+    }
+  }
   if (v.documentSource) {
     const parts = [v.documentSource.addressFound ? "o endereço" : null, v.documentSource.areaFound ? "a área" : null].filter(Boolean);
     if (parts.length) risks.push(`${parts.join(" e ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática da matrícula e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} no documento.`);
@@ -210,10 +227,13 @@ async function calculate(event) {
   const v = getInputs();
   $("cep").value = v.cep;
   $("age-note").textContent = Number.isFinite(v.age)
-    ? `${v.age} ${v.age === 1 ? "ano" : "anos"} em ${model.applicability.base_year}, o ano-base do modelo.`
-    : "Informe o ano de conclusão da construção.";
+    ? `Equivale a construção concluída em ${v.yearBuilt}, contando do ano-base ${model.applicability.base_year} do modelo.`
+    : "Informe a idade do edifício em anos.";
+  $("private-area-note").textContent = Number.isFinite(v.privateArea) && Number.isFinite(v.area) && v.area > 0
+    ? `${decimal.format((v.privateArea / v.area) * 100)}% da área construída informada. Não entra no cálculo: serve para conferir o imóvel.`
+    : "Área de uso exclusivo da unidade, como consta na matrícula. Serve para identificar e conferir o imóvel; não é a área que entra no cálculo.";
 
-  const required = { area: v.area, age: v.yearBuilt, fiscal: v.fiscal };
+  const required = { area: v.area, age: v.age, fiscal: v.fiscal };
   const missing = v.enabledVariables.filter((key) => key in required && !Number.isFinite(required[key]));
   if (missing.length || !v.enabledVariables.length) {
     latestReport = null;
@@ -256,6 +276,8 @@ async function calculate(event) {
     purpose: "Estimativa estatística de valor, para uso informativo",
     property: { ...v, patternLabel: patternLabel(v.pattern) },
     variables: { enabled: v.enabledVariables, disabled, labels: VARIABLE_LABELS, modelKey },
+    operation: { financing: v.financing, funds: v.funds },
+    confidence: AvmPredict.confidence(v, stats, disabled),
     result: {
       estimate: Math.round(interval.value),
       pricePerM2: areaUsed && v.area > 0 ? Math.round(interval.value / v.area) : null, // só com a área no modelo (VULN-006)
@@ -298,6 +320,7 @@ function renderResult(report) {
   $("result-reference").textContent = report.model.referenceDateLabel;
   $("support-count").textContent = result.localSupport ? `${number.format(result.localSupport.n)} (${result.localSupport.level} ${result.localSupport.key})` : v.cep8.length === 8 ? "nenhuma" : "sem CEP";
   $("local-median").textContent = result.localSupport ? `${money.format(result.localSupport.median_price_m2)}/m²` : "—";
+  $("confidence").textContent = `${report.confidence.level} · ${report.confidence.reasons.join(", ")}`;
   $("district-support").textContent = result.localSupport
     ? `${number.format(result.localSupport.n)} transações da base na região ${result.localSupport.level} ${result.localSupport.key}. O CEP não entra no preço.`
     : "O CEP não entra no preço; mostra quantas transações da base ficam na mesma região.";
@@ -309,12 +332,15 @@ function renderResult(report) {
   $("report-estimate").textContent = `valor central ${money.format(result.estimate)}`;
   const used = (key, value) => (variables.disabled.includes(key) ? "não usada nesta estimativa (variável desabilitada)" : value); // VULN-006
   $("report-property").innerHTML = dl([
-    ["Endereço informado", v.address ? `${v.address}, São Paulo/SP` : null],
+    ["Endereço informado", v.address ? `${v.address}${v.complement ? `, ${v.complement}` : ""}, São Paulo/SP` : null],
+    ["Bairro", v.district || null],
     ["CEP", v.cep8.length === 8 ? v.cep : null],
-    ["Área construída", used("area", `${areaNumber.format(v.area)} m²`)],
-    ["Ano de conclusão / idade", used("age", `${v.yearBuilt} / ${v.age} ${v.age === 1 ? "ano" : "anos"}`)],
+    ["Área privativa (matrícula)", Number.isFinite(v.privateArea) ? `${areaNumber.format(v.privateArea)} m² (não entra no cálculo)` : null],
+    ["Área construída (IPTU)", used("area", `${areaNumber.format(v.area)} m²`)],
+    ["Idade / ano de conclusão", used("age", `${v.age} ${v.age === 1 ? "ano" : "anos"} / ${v.yearBuilt}`)],
     ["Padrão IPTU", used("pattern", `${v.patternLabel} (código ${v.pattern})`)],
     ["Valor fiscal PGV", used("fiscal", `${money.format(v.fiscal)}/m² de terreno (VM2T informado)`)],
+    ["Enquadramento declarado", `${report.operation.financing} · recursos ${report.operation.funds} (não altera a estimativa)`],
     ["Variáveis ativas", variables.enabled.map((item) => VARIABLE_LABELS[item]).join(", ")],
     ["Variáveis desabilitadas", variables.disabled.length ? variables.disabled.map((item) => VARIABLE_LABELS[item]).join(", ") : "Nenhuma"],
     ["Origem do preenchimento", v.documentSource ? `${v.documentSource.fileName} · ${v.documentSource.method}` : "Informação manual"],
@@ -324,6 +350,7 @@ function renderResult(report) {
     ["Valor central", money.format(result.estimate)],
     ["Valor unitário", result.pricePerM2 ? `${money.format(result.pricePerM2)}/m²` : null],
     ["Data-base dos preços", report.model.referenceDateLabel],
+    ["Confiança", `${report.confidence.level} — ${report.confidence.reasons.join(", ")}`],
     ["Domínio", result.scope],
   ]);
   $("report-model").innerHTML = dl([
@@ -351,10 +378,10 @@ function populatePatterns() {
 function applyLimitsToForm() {
   const a = model.applicability;
   $("area").min = a.area_m2[0]; $("area").max = a.area_m2[1];
-  $("year-built").min = a.year_built[0]; $("year-built").max = a.year_built[1];
+  $("age").min = a.age_years[0]; $("age").max = a.age_years[1];
   $("fiscal").min = a.fiscal_vm2t_brl[0]; $("fiscal").max = a.fiscal_vm2t_brl[1];
   $("scope-area").textContent = `${a.area_m2[0]}–${a.area_m2[1]} m²`;
-  $("scope-year").textContent = `construção ${a.year_built[0]}–${a.year_built[1]}`;
+  $("scope-year").textContent = `${a.age_years[0]}–${a.age_years[1]} anos de idade`;
   $("scope-price").textContent = `${money.format(a.price_brl[0])} a ${money.format(a.price_brl[1])}`;
 }
 
@@ -374,11 +401,16 @@ function updateVariableControls(changedInput) {
 function resetExample() {
   documentReadState = null;
   $("address").value = EXAMPLE.address;
+  $("complement").value = EXAMPLE.complement;
+  $("district").value = EXAMPLE.district;
   $("cep").value = EXAMPLE.cep;
+  $("private-area").value = EXAMPLE.privateArea;
   $("area").value = EXAMPLE.area;
-  $("year-built").value = EXAMPLE.yearBuilt;
+  $("age").value = EXAMPLE.age;
   $("pattern").value = EXAMPLE.pattern;
   $("fiscal").value = EXAMPLE.fiscal;
+  $("financing").value = EXAMPLE.financing;
+  $("funds").value = EXAMPLE.funds;
   // #declared fica como está: o exemplo preenche, mas só o usuário confirma (VULN-010)
   $("address-lookup-status").textContent = "Só sai do seu navegador se você clicar em Localizar CEP: o endereço é então enviado ao OpenStreetMap (Nominatim) para preencher o CEP.";
   setReaderStatus("", "Nenhum documento selecionado.");

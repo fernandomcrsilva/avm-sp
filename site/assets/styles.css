@@ -147,6 +147,7 @@ input:focus, select:focus { background: #fff; border-color: var(--cyan); }
 .metric-grid div { padding: 12px 14px; background: var(--ink); }
 .metric-grid span { display: block; color: #8fa6b4; font-size: .68rem; }
 .metric-grid strong { display: block; margin-top: 2px; font-size: .88rem; }
+.metric-grid .metric-wide { grid-column: 1 / -1; }
 .risk-box { padding: 12px 14px; border-left: 3px solid var(--amber); color: #d4dee4; background: rgba(240,173,78,.08); border-radius: 4px 10px 10px 4px; font-size: .75rem; }
 .risk-box strong { color: #ffd68d; }
 .result-actions { display: flex; gap: 9px; margin-top: 18px; }
@@ -261,7 +262,8 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
   .brand { gap: 9px; }
   .brand-mark { width: 34px; height: 34px; font-size: .95rem; }
   .brand small { display: none; }
-  .tabs { justify-self: end; min-width: 0; overflow-x: auto; }
+  /* max-width: com justify-self:end o item usa max-content e passa por cima da marca; 100% prende à coluna e deixa o overflow-x rolar. */
+  .tabs { justify-self: end; min-width: 0; max-width: 100%; overflow-x: auto; }
   .tab { white-space: nowrap; padding: 9px 11px; font-size: .82rem; }
   main { padding: 28px 15px 60px; }
   .text-button { min-height: 44px; } /* alvo de toque */

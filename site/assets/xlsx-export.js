@@ -149,8 +149,11 @@
       ["Domínio", r.scope],
       ["Data-base dos preços", m.referenceDateLabel],
       ["Valor fiscal PGV informado", used("fiscal", cell(p.fiscal, 2))],
-      ["Área construída informada", used("area", cell(p.area, 8))],
-      ["Ano de conclusão / idade", used("age", `${p.yearBuilt} / ${p.age}`)],
+      ["Área construída informada (IPTU)", used("area", cell(p.area, 8))],
+      ["Área privativa informada (matrícula)", Number.isFinite(p.privateArea) ? cell(p.privateArea, 8) : "Não informada"],
+      ["Idade / ano de conclusão", used("age", `${p.age} / ${p.yearBuilt}`)],
+      ["Confiança", `${report.confidence.level} — ${report.confidence.reasons.join(", ")}`],
+      ["Enquadramento declarado", `${report.operation.financing} · recursos ${report.operation.funds}`],
       ["Variáveis ativas", report.variables.enabled.map((item) => report.variables.labels[item]).join(", ")],
       ["Modelo selecionado", report.variables.modelKey],
       ["Origem do preenchimento", p.documentSource ? `${p.documentSource.fileName} — ${p.documentSource.method}` : "Informação manual"],
@@ -164,10 +167,10 @@
     const propertyRows = [
       [cell("DADOS DECLARADOS DO IMÓVEL", 3)],
       [],
-      ["Endereço", "CEP", "Cidade", "UF", "Tipologia", "Área construída (m²)", "Ano de conclusão (IPTU)", "Idade (anos)", "Padrão IPTU", "VM2T PGV (R$/m² terreno)", "Variáveis ativas", "Variáveis desabilitadas"].map((v) => cell(v, 1)),
-      [p.address || "", p.cep || "", "São Paulo", "SP", "Apartamento residencial", used("area", cell(p.area, 8)), used("age", cell(p.yearBuilt, 5)), used("age", cell(p.age, 5)), used("pattern", `${p.patternLabel} (cód. ${p.pattern})`), used("fiscal", cell(p.fiscal, 2)), report.variables.enabled.map((item) => report.variables.labels[item]).join(", "), report.variables.disabled.length ? report.variables.disabled.map((item) => report.variables.labels[item]).join(", ") : "Nenhuma"],
+      ["Endereço", "Complemento", "Bairro", "CEP", "Cidade", "UF", "Tipologia", "Área privativa (m²)", "Área construída (m²)", "Idade (anos)", "Ano de conclusão (IPTU)", "Padrão IPTU", "VM2T PGV (R$/m² terreno)", "Enquadramento", "Recursos", "Variáveis ativas", "Variáveis desabilitadas"].map((v) => cell(v, 1)),
+      [p.address || "", p.complement || "", p.district || "", p.cep || "", "São Paulo", "SP", "Apartamento residencial", Number.isFinite(p.privateArea) ? cell(p.privateArea, 8) : "", used("area", cell(p.area, 8)), used("age", cell(p.age, 5)), used("age", cell(p.yearBuilt, 5)), used("pattern", `${p.patternLabel} (cód. ${p.pattern})`), used("fiscal", cell(p.fiscal, 2)), report.operation.financing, report.operation.funds, report.variables.enabled.map((item) => report.variables.labels[item]).join(", "), report.variables.disabled.length ? report.variables.disabled.map((item) => report.variables.labels[item]).join(", ") : "Nenhuma"],
       [],
-      [cell("Nota", 4), cell("O modelo foi treinado com a área construída do cadastro do IPTU; a área privativa da matrícula pode diferir. Endereço e CEP não entram no cálculo do valor.", 4)],
+      [cell("Nota", 4), cell("O cálculo usa a área construída do cadastro do IPTU. A área privativa da matrícula é registrada para identificação e conferência e não entra na estimativa. Endereço, complemento, bairro, CEP, enquadramento (SFH/SFI) e origem dos recursos (SBPE/outros) também não entram no cálculo do valor.", 4)],
     ];
 
     const modelRows = [
@@ -228,7 +231,7 @@
 
     const sheets = [
       { name: "Resumo", xml: worksheetXml(summaryRows, { widths: [30, 84], merges: ["A1:B1"] }) },
-      { name: "Dados do Imóvel", xml: worksheetXml(propertyRows, { widths: [34, 14, 16, 8, 24, 20, 16, 12, 18, 24, 36, 36], merges: ["A1:L1", "B6:L6"], freezeRow: true, autoFilter: "A3:L4" }) },
+      { name: "Dados do Imóvel", xml: worksheetXml(propertyRows, { widths: [34, 16, 20, 14, 16, 8, 24, 18, 20, 12, 16, 18, 24, 14, 14, 36, 36], merges: ["A1:Q1", "B6:Q6"], freezeRow: true, autoFilter: "A3:Q4" }) },
       { name: "Modelo", xml: worksheetXml(modelRows, { widths: [34, 72], merges: ["A1:B1"], freezeRow: true }) },
       { name: "Riscos", xml: worksheetXml(riskRows, { widths: [8, 110], merges: ["A1:B1"], freezeRow: true }) },
       { name: "Fontes", xml: worksheetXml(sourceRows, { widths: [48, 42, 105], merges: ["A1:C1"], freezeRow: true, autoFilter: `A3:C${sourceRows.length}` }) },
