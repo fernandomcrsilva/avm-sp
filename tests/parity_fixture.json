@@ -1,0 +1,435 @@
+{
+ "$comment": "Gerado por scripts/parity_fixture.py (formula) ou train_model.py (sklearn). Não edite à mão.",
+ "reference": "formula",
+ "model_version": "SP-AVM-ITBI-PGV-2026.07-R2",
+ "model_trained_at": "2026-09-07",
+ "model_sha256": "3ce07e8882c1f8cf6bc5201c6267858dc88677975d7c0d3d9fb718f5bcc5a51f",
+ "tolerance_log": 1e-09,
+ "cases": [
+  {
+   "input": {
+    "area": 35,
+    "age": 0,
+    "pattern": "22",
+    "fiscal": 320
+   },
+   "expected_log_price": {
+    "area": 12.587860835486397,
+    "age": 12.881138705075687,
+    "pattern": 12.96565875449,
+    "fiscal": 11.475429305389197,
+    "area+age": 12.693775536264328,
+    "area+pattern": 12.592328489481195,
+    "area+fiscal": 11.428561640436966,
+    "age+pattern": 12.895327484107431,
+    "age+fiscal": 11.120189579681139,
+    "pattern+fiscal": 11.70538426788548,
+    "area+age+pattern": 12.698931052284543,
+    "area+age+fiscal": 11.506379740668175,
+    "area+pattern+fiscal": 11.469843299737283,
+    "age+pattern+fiscal": 11.454123971248787,
+    "area+age+pattern+fiscal": 11.548610487144432
+   }
+  },
+  {
+   "input": {
+    "area": 35,
+    "age": 0,
+    "pattern": "22",
+    "fiscal": 33322
+   },
+   "expected_log_price": {
+    "area": 12.587860835486397,
+    "age": 12.881138705075687,
+    "pattern": 12.96565875449,
+    "fiscal": 13.113321516813,
+    "area+age": 12.693775536264328,
+    "area+pattern": 12.592328489481195,
+    "area+fiscal": 12.974712016039897,
+    "age+pattern": 12.895327484107431,
+    "age+fiscal": 12.913308089303092,
+    "pattern+fiscal": 12.929785533786493,
+    "area+age+pattern": 12.698931052284543,
+    "area+age+fiscal": 13.01918004060661,
+    "area+pattern+fiscal": 12.963078822331509,
+    "age+pattern+fiscal": 12.817635515432821,
+    "area+age+pattern+fiscal": 13.00635422461643
+   }
+  },
+  {
+   "input": {
+    "area": 35,
+    "age": 20,
+    "pattern": "22",
+    "fiscal": 320
+   },
+   "expected_log_price": {
+    "area": 12.587860835486397,
+    "age": 13.36490033947308,
+    "pattern": 12.96565875449,
+    "fiscal": 11.475429305389197,
+    "area+age": 12.455134904382188,
+    "area+pattern": 12.592328489481195,
+    "area+fiscal": 11.428561640436966,
+    "age+pattern": 13.216176993926313,
+    "age+fiscal": 11.703228576529886,
+    "pattern+fiscal": 11.70538426788548,
+    "area+age+pattern": 12.472744606316892,
+    "area+age+fiscal": 11.365343612859757,
+    "area+pattern+fiscal": 11.469843299737283,
+    "age+pattern+fiscal": 11.87371923681544,
+    "area+age+pattern+fiscal": 11.40655400282503
+   }
+  },
+  {
+   "input": {
+    "area": 35,
+    "age": 20,
+    "pattern": "22",
+    "fiscal": 33322
+   },
+   "expected_log_price": {
+    "area": 12.587860835486397,
+    "age": 13.36490033947308,
+    "pattern": 12.96565875449,
+    "fiscal": 13.113321516813,
+    "area+age": 12.455134904382188,
+    "area+pattern": 12.592328489481195,
+    "area+fiscal": 12.974712016039897,
+    "age+pattern": 13.216176993926313,
+    "age+fiscal": 13.49634708615184,
+    "pattern+fiscal": 12.929785533786493,
+    "area+age+pattern": 12.472744606316892,
+    "area+age+fiscal": 12.878143912798192,
+    "area+pattern+fiscal": 12.963078822331509,
+    "age+pattern+fiscal": 13.237230780999473,
+    "area+age+pattern+fiscal": 12.86429774029703
+   }
+  },
+  {
+   "input": {
+    "area": 250,
+    "age": 0,
+    "pattern": "22",
+    "fiscal": 320
+   },
+   "expected_log_price": {
+    "area": 14.272935359129816,
+    "age": 12.881138705075687,
+    "pattern": 12.96565875449,
+    "fiscal": 11.475429305389197,
+    "area+age": 14.493862214843213,
+    "area+pattern": 14.093415297123496,
+    "area+fiscal": 13.340547812319253,
+    "age+pattern": 12.895327484107431,
+    "age+fiscal": 11.120189579681139,
+    "pattern+fiscal": 11.70538426788548,
+    "area+age+pattern": 14.283231107925268,
+    "area+age+fiscal": 13.477076277711634,
+    "area+pattern+fiscal": 13.315551420884214,
+    "age+pattern+fiscal": 11.454123971248787,
+    "area+age+pattern+fiscal": 13.436104292780055
+   }
+  },
+  {
+   "input": {
+    "area": 250,
+    "age": 0,
+    "pattern": "22",
+    "fiscal": 33322
+   },
+   "expected_log_price": {
+    "area": 14.272935359129816,
+    "age": 12.881138705075687,
+    "pattern": 12.96565875449,
+    "fiscal": 13.113321516813,
+    "area+age": 14.493862214843213,
+    "area+pattern": 14.093415297123496,
+    "area+fiscal": 14.886698187922184,
+    "age+pattern": 12.895327484107431,
+    "age+fiscal": 12.913308089303092,
+    "pattern+fiscal": 12.929785533786493,
+    "area+age+pattern": 14.283231107925268,
+    "area+age+fiscal": 14.989876577650069,
+    "area+pattern+fiscal": 14.80878694347844,
+    "age+pattern+fiscal": 12.817635515432821,
+    "area+age+pattern+fiscal": 14.893848030252054
+   }
+  },
+  {
+   "input": {
+    "area": 250,
+    "age": 20,
+    "pattern": "22",
+    "fiscal": 320
+   },
+   "expected_log_price": {
+    "area": 14.272935359129816,
+    "age": 13.36490033947308,
+    "pattern": 12.96565875449,
+    "fiscal": 11.475429305389197,
+    "area+age": 14.255221582961076,
+    "area+pattern": 14.093415297123496,
+    "area+fiscal": 13.340547812319253,
+    "age+pattern": 13.216176993926313,
+    "age+fiscal": 11.703228576529886,
+    "pattern+fiscal": 11.70538426788548,
+    "area+age+pattern": 14.057044661957617,
+    "area+age+fiscal": 13.336040149903216,
+    "area+pattern+fiscal": 13.315551420884214,
+    "age+pattern+fiscal": 11.87371923681544,
+    "area+age+pattern+fiscal": 13.294047808460654
+   }
+  },
+  {
+   "input": {
+    "area": 250,
+    "age": 20,
+    "pattern": "22",
+    "fiscal": 33322
+   },
+   "expected_log_price": {
+    "area": 14.272935359129816,
+    "age": 13.36490033947308,
+    "pattern": 12.96565875449,
+    "fiscal": 13.113321516813,
+    "area+age": 14.255221582961076,
+    "area+pattern": 14.093415297123496,
+    "area+fiscal": 14.886698187922184,
+    "age+pattern": 13.216176993926313,
+    "age+fiscal": 13.49634708615184,
+    "pattern+fiscal": 12.929785533786493,
+    "area+age+pattern": 14.057044661957617,
+    "area+age+fiscal": 14.848840449841651,
+    "area+pattern+fiscal": 14.80878694347844,
+    "age+pattern+fiscal": 13.237230780999473,
+    "area+age+pattern+fiscal": 14.751791545932653
+   }
+  },
+  {
+   "input": {
+    "area": 88,
+    "age": 8,
+    "pattern": "22",
+    "fiscal": 2554
+   },
+   "expected_log_price": {
+    "area": 12.911312659308063,
+    "age": 12.998732595491038,
+    "pattern": 12.96565875449,
+    "fiscal": 13.08588293356884,
+    "area+age": 12.883137672325631,
+    "area+pattern": 12.935579988186467,
+    "area+fiscal": 12.96796601314397,
+    "age+pattern": 12.946032710421477,
+    "age+fiscal": 13.103603497554406,
+    "pattern+fiscal": 13.01891539149365,
+    "area+age+pattern": 12.902232972107464,
+    "area+age+fiscal": 12.96087692490066,
+    "area+pattern+fiscal": 12.973169652021994,
+    "age+pattern+fiscal": 13.037965469998884,
+    "area+age+pattern+fiscal": 12.96367593285626
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "20",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 12.193787154751,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 11.85424564445153,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 12.09059856905609,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 12.613610499722245,
+    "area+age+pattern": 11.956083647702028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.359406606831502,
+    "age+pattern+fiscal": 12.481803119730042,
+    "area+age+pattern+fiscal": 12.399511780806678
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "21",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 12.368443815055,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 12.23463810632953,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 12.28496163798109,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 12.870449278709245,
+    "area+age+pattern": 12.320658226982028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.785480625424501,
+    "age+pattern+fiscal": 12.780190514809041,
+    "area+age+pattern+fiscal": 12.816813863248678
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "22",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 12.96565875449,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 12.56130728476953,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 12.902211541223089,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 13.205736504193245,
+    "area+age+pattern": 12.616544280423028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.879851703208502,
+    "age+pattern+fiscal": 13.121677114509042,
+    "area+age+pattern+fiscal": 12.899559188073678
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "23",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 13.851941022768,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 12.77848370627653,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 13.73736647478809,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 13.965651877340246,
+    "area+age+pattern": 12.859678392427028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.947992961449502,
+    "age+pattern+fiscal": 13.794527237330042,
+    "area+age+pattern+fiscal": 12.984804984987678
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "24",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 13.965154699794,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 12.71920616711153,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 13.81616609617309,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 14.136644921374245,
+    "area+age+pattern": 12.848840536823028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.914271860529501,
+    "age+pattern+fiscal": 13.91121564531504,
+    "area+age+pattern+fiscal": 12.974772020340678
+   }
+  },
+  {
+   "input": {
+    "area": 57.5,
+    "age": 3,
+    "pattern": "25",
+    "fiscal": 6500
+   },
+   "expected_log_price": {
+    "area": 12.51597990332881,
+    "age": 12.913375357209006,
+    "pattern": 13.06899708937,
+    "fiscal": 13.347163387584422,
+    "area+age": 12.578257237661203,
+    "area+pattern": 12.42957618178753,
+    "area+fiscal": 12.87905038839464,
+    "age+pattern": 12.96626086384209,
+    "age+fiscal": 13.20608790705662,
+    "pattern+fiscal": 13.358418616266245,
+    "area+age+pattern": 12.520361016870028,
+    "area+age+fiscal": 12.900304768930166,
+    "area+pattern+fiscal": 12.777400751487502,
+    "age+pattern+fiscal": 13.217882726338042,
+    "area+age+pattern+fiscal": 12.815092367491678
+   }
+  },
+  {
+   "input": {
+    "area": 121.37,
+    "age": 12,
+    "pattern": "23",
+    "fiscal": 4321.5
+   },
+   "expected_log_price": {
+    "area": 13.351569099728358,
+    "age": 13.095484922370517,
+    "pattern": 13.851941022768,
+    "fiscal": 13.268326519547088,
+    "area+age": 13.292234590401975,
+    "area+pattern": 13.54942466335333,
+    "area+fiscal": 13.492373601760843,
+    "age+pattern": 13.845357545950256,
+    "age+fiscal": 13.420326268706233,
+    "pattern+fiscal": 13.91484322816217,
+    "area+age+pattern": 13.512867355087726,
+    "area+age+fiscal": 13.464892785503654,
+    "area+pattern+fiscal": 13.549767612197458,
+    "age+pattern+fiscal": 13.94655946297296,
+    "area+age+pattern+fiscal": 13.536116972954034
+   }
+  },
+  {
+   "input": {
+    "area": 200.01,
+    "age": 20,
+    "pattern": "24",
+    "fiscal": 15000
+   },
+   "expected_log_price": {
+    "area": 14.040869108693,
+    "age": 13.36490033947308,
+    "pattern": 13.965154699794,
+    "fiscal": 13.337380719774352,
+    "area+age": 14.038080270074751,
+    "area+pattern": 14.075858600688052,
+    "area+fiscal": 14.438275108492508,
+    "age+pattern": 14.130131548876314,
+    "age+fiscal": 13.677147168711514,
+    "pattern+fiscal": 14.091299026570216,
+    "area+age+pattern": 14.141684694315954,
+    "area+age+fiscal": 14.400645272453554,
+    "area+pattern+fiscal": 14.420702485447983,
+    "age+pattern+fiscal": 14.222728466827057,
+    "area+age+pattern+fiscal": 14.41545859548547
+   }
+  }
+ ]
+}

@@ -1,0 +1,107 @@
+{
+ "$comment": "Entradas de referência do teste de paridade Python↔JS. age já é a idade (0–20); pattern é o código IPTU como string; fiscal é o VM2T em R$/m².",
+ "cases": [
+  {
+   "area": 35,
+   "age": 0,
+   "pattern": "22",
+   "fiscal": 320
+  },
+  {
+   "area": 35,
+   "age": 0,
+   "pattern": "22",
+   "fiscal": 33322
+  },
+  {
+   "area": 35,
+   "age": 20,
+   "pattern": "22",
+   "fiscal": 320
+  },
+  {
+   "area": 35,
+   "age": 20,
+   "pattern": "22",
+   "fiscal": 33322
+  },
+  {
+   "area": 250,
+   "age": 0,
+   "pattern": "22",
+   "fiscal": 320
+  },
+  {
+   "area": 250,
+   "age": 0,
+   "pattern": "22",
+   "fiscal": 33322
+  },
+  {
+   "area": 250,
+   "age": 20,
+   "pattern": "22",
+   "fiscal": 320
+  },
+  {
+   "area": 250,
+   "age": 20,
+   "pattern": "22",
+   "fiscal": 33322
+  },
+  {
+   "area": 88,
+   "age": 8,
+   "pattern": "22",
+   "fiscal": 2554
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "20",
+   "fiscal": 6500
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "21",
+   "fiscal": 6500
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "22",
+   "fiscal": 6500
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "23",
+   "fiscal": 6500
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "24",
+   "fiscal": 6500
+  },
+  {
+   "area": 57.5,
+   "age": 3,
+   "pattern": "25",
+   "fiscal": 6500
+  },
+  {
+   "area": 121.37,
+   "age": 12,
+   "pattern": "23",
+   "fiscal": 4321.5
+  },
+  {
+   "area": 200.01,
+   "age": 20,
+   "pattern": "24",
+   "fiscal": 15000
+  }
+ ]
+}
