@@ -6,7 +6,7 @@ Repositório: https://github.com/fernandomcrsilva/avm-sp · Worker: `avm-sp` (co
 ## O que está no ar
 
 ```bash
-curl -s https://avm.heybrain.uk/version.json   # git_sha, built_at, model_version, model_trained_at
+curl -s https://avm.heybrain.uk/version.json   # git_sha, built_at, model_version, model_trained_at, model_sha256
 npx wrangler deployments list                   # versão ativa e histórico
 npx wrangler versions list                      # versões enviadas (com tag/mensagem)
 ```
@@ -67,7 +67,9 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
    uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.lock
    .venv/bin/python train_model.py --trained-at AAAA-MM-DD
    ```
-   Saída: `site/assets/model.json` e `tests/parity_fixture.json` (referência scikit-learn).
+   Saída: `site/assets/model.json` e `tests/parity_fixture.json` (referência scikit-learn). O teste de paridade **exige**
+   a fixture do scikit-learn com o sha256 do `model.json`: um `model.json` editado à mão, ou uma fixture "formula" de
+   `scripts/parity_fixture.py`, reprova no CI (VULN-004). O sha256 vai para `/version.json` e para `/metodologia`.
 5. `npm run check` (validador com faixas sãs, paridade 1e-9, build). Se o validador reprovar métricas, não publique.
 6. Confira `/metodologia` no preview: períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
 7. PR → preview → merge → tag. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.

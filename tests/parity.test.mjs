@@ -1,5 +1,6 @@
 // Paridade Python↔JS: a equação em site/assets/predict.js tem que reproduzir tests/parity_fixture.json
-// (gerada pelo sklearn em train_model.py, ou pela fórmula em scripts/parity_fixture.py) dentro de 1e-9 em ln(preço).
+// dentro de 1e-9 em ln(preço). A fixture tem de vir do scikit-learn (train_model.py): uma fixture "formula"
+// (scripts/parity_fixture.py) só prova que o JS espelha o model.json, não que o model.json veio do treino (VULN-004).
 // Rodar: node --test tests/
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -18,6 +19,7 @@ test("fixture foi gerada para este model.json", () => {
   assert.equal(fixture.model_sha256, createHash("sha256").update(modelBytes).digest("hex"),
     "model.json mudou: regenere a fixture (train_model.py ou scripts/parity_fixture.py)");
   assert.equal(fixture.model_version, model.version);
+  assert.equal(fixture.reference, "sklearn", "fixture 'formula' não vale: regenere com train_model.py");
 });
 
 test(`ln(preço) bate com a referência ${fixture.reference} em todos os modelos e casos`, () => {

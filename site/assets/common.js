@@ -2,12 +2,17 @@
 (function (root) {
   "use strict";
   const dateFmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" });
+  const hex = (buffer) => [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const sha256Hex = async (data) => hex(await crypto.subtle.digest("SHA-256", typeof data === "string" ? new TextEncoder().encode(data) : data));
+  let modelSha256 = null; // do arquivo realmente carregado: bate com model_sha256 de /version.json e da fixture de paridade
 
   async function loadModel() {
     const link = document.getElementById("model-url");
     const response = await fetch(link.href);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
+    const bytes = await response.arrayBuffer();
+    modelSha256 = await sha256Hex(bytes);
+    return JSON.parse(new TextDecoder().decode(bytes));
   }
 
   function isoDate(value) {
@@ -59,5 +64,5 @@
     return model;
   }
 
-  root.AvmCommon = { loadModel: loadModelTracked, fillVersion, isoDate, monthLabel, report };
+  root.AvmCommon = { loadModel: loadModelTracked, fillVersion, isoDate, monthLabel, report, sha256Hex, modelSha256: () => modelSha256 };
 })(globalThis);

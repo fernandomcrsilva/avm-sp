@@ -66,13 +66,15 @@ for (const file of scripts) { rewrite(file); fingerprint(file); }
 for (const file of walk(OUT).filter((file) => file.endsWith(".html"))) rewrite(file);
 
 // /version.json: o que está no ar sem abrir o dashboard (Fase 8). Servido com no-store via _headers.
-const model = JSON.parse(readFileSync(join(SRC, "assets", "model.json"), "utf8"));
+const modelBytes = readFileSync(join(SRC, "assets", "model.json"));
+const model = JSON.parse(modelBytes.toString("utf8"));
 const gitSha = process.env.GITHUB_SHA || (() => { try { return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(); } catch { return "unknown"; } })();
 writeFileSync(join(OUT, "version.json"), `${JSON.stringify({
   git_sha: gitSha,
   built_at: new Date().toISOString(),
   model_version: model.version,
   model_trained_at: model.trained_at,
+  model_sha256: createHash("sha256").update(modelBytes).digest("hex"), // o mesmo da fixture de paridade e da /metodologia
   model_asset: renamed.get("assets/model.json"),
 }, null, 1)}\n`);
 console.log(`${renamed.size} assets com fingerprint em ${OUT}/`);
