@@ -64,15 +64,34 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
    `train_model.py`. A `version` do modelo também está lá.
 4. Treine no ambiente fixado (`requirements.lock`, Python 3.12):
    ```bash
-   uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.lock
+   uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python --require-hashes -r requirements.lock
    .venv/bin/python train_model.py --trained-at AAAA-MM-DD
    ```
+   O `requirements.lock` vem de `uv pip compile --python-version 3.12 --generate-hashes requirements.in -o requirements.lock`;
+   para subir uma versão, edite `requirements.in` e recompile. Grupos de CEP com menos de 5 transações não entram em `cep4_stats`.
    Saída: `site/assets/model.json` e `tests/parity_fixture.json` (referência scikit-learn). O teste de paridade **exige**
    a fixture do scikit-learn com o sha256 do `model.json`: um `model.json` editado à mão, ou uma fixture "formula" de
    `scripts/parity_fixture.py`, reprova no CI (VULN-004). O sha256 vai para `/version.json` e para `/metodologia`.
 5. `npm run check` (validador com faixas sãs, paridade 1e-9, build). Se o validador reprovar métricas, não publique.
 6. Confira `/metodologia` no preview: períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
 7. PR → preview → merge → tag. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.
+
+## Atualizar o vendor (pdf.js, tesseract.js, core WASM, idioma)
+
+Os arquivos em `site/assets/vendor/` são cópias exatas de pacotes do npm; `site/assets/vendor/SHA256SUMS` diz de qual
+pacote e arquivo cada um veio, e o CI (`sha256sum -c`) reprova qualquer divergência (VULN-007). Para atualizar:
+
+```bash
+cd "$(mktemp -d)" && npm pack pdfjs-dist@<ver> tesseract.js@<ver> tesseract.js-core@<ver> @tesseract.js-data/por@<ver>
+for t in *.tgz; do mkdir "${t%.tgz}" && tar -xzf "$t" -C "${t%.tgz}"; done   # copie os arquivos listados no SHA256SUMS
+```
+Depois, no repositório: renomeie os diretórios versionados (`tesseract-core-<ver>/`, `tessdata-…/`) e as referências em
+`matricula-reader.js`, atualize as versões no cabeçalho (linhas `#`) do `SHA256SUMS` e regenere as linhas de hash:
+
+```bash
+cd site/assets/vendor && { grep '^#' SHA256SUMS; find . -type f ! -name SHA256SUMS | sort | sed 's#^\./##' | xargs sha256sum; } > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS && sha256sum --strict -c SHA256SUMS
+```
+Teste o OCR no navegador (`npx wrangler dev --assets <cópia do dist> --port 8788` com um PDF) antes do PR.
 
 ## Configurações da zona que importam (heybrain.uk)
 
@@ -87,11 +106,11 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
 
 ## Observabilidade
 
-- Workers Logs (7 dias): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
+- Workers Logs (retenção de 3 dias no plano Free; confira no dashboard se o plano mudar): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
   `{"event":"front_error","kind":...}` com `kind` em `model_load_failed | js_error | unhandled_rejection | ocr_failed | refused`.
   Nunca contêm dados do imóvel; em `refused` só o código do limite.
 - Uptime: `.github/workflows/uptime.yml` a cada 30 min (falha = e-mail do GitHub). Rodar à mão: Actions → uptime → Run workflow.
-- Lighthouse local: `CHROME_PATH=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome npx lighthouse@12 https://avm.heybrain.uk/ --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate`.
+- Lighthouse local: `CHROME_PATH=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome npx lighthouse@12.8.2 https://avm.heybrain.uk/ --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate`.
 
 ## Desenvolvimento local
 

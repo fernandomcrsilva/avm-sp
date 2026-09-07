@@ -63,11 +63,9 @@ Depois, acesse `http://localhost:8000`.
 
 ## Publicação
 
-A aplicação é um site estático. O diretório publicado é `dist`, conforme `.openai/hosting.json`. A versão 7 atualmente está ativa no endereço:
+A aplicação é um site estático. O diretório publicado é `dist`, conforme `.openai/hosting.json`. A versão 7 ficou em uma hospedagem anterior, privada, hoje desativada.
 
-https://avm-sp-engenharia-2026.edurs1957.chatgpt.site
-
-O acesso está restrito ao proprietário. Torná-lo público é uma decisão de publicação separada e não foi executada na preparação deste pacote.
+O acesso estava restrito ao proprietário. Torná-lo público é uma decisão de publicação separada e não foi executada na preparação deste pacote.
 
 ## Reproduzir o treinamento
 
