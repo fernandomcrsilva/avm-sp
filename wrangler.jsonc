@@ -1,0 +1,16 @@
+{
+  // Cloudflare Workers Static Assets, sem Worker script: só arquivos estáticos de dist/.
+  // Se um dia houver "main", os cabeçalhos de _headers NÃO se aplicam às respostas do script.
+  "name": "avm-sp",
+  "compatibility_date": "2026-09-07",
+  "account_id": "ee92a19319ea452a3e1b995058bb5a33",
+  "build": { "command": "npm run build" },
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // avm-sp.heybrain.workers.dev fica como preview (noindex via _headers); produção é o Custom Domain.
+  "workers_dev": true,
+  "preview_urls": true
+}

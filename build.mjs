@@ -44,13 +44,16 @@ function rewrite(file) {
   let text = readFileSync(file, "utf8");
   let changed = false;
   for (const [from, to] of renamed) {
-    const a = posix.relative(dir, from);
-    const b = posix.relative(dir, to);
-    for (const q of QUOTES) {
-      const needle = `${q}${a}${q}`;
-      if (text.includes(needle)) {
-        text = text.split(needle).join(`${q}${b}${q}`);
-        changed = true;
+    // relativo ao arquivo ("assets/app.js" em index.html, "vendor/x.mjs" em assets/*.js)
+    // ou absoluto a partir da raiz ("/assets/styles.css" em 404.html, que é servido em qualquer path)
+    const pairs = [[posix.relative(dir, from), posix.relative(dir, to)], [`/${from}`, `/${to}`]];
+    for (const [a, b] of pairs) {
+      for (const q of QUOTES) {
+        const needle = `${q}${a}${q}`;
+        if (text.includes(needle)) {
+          text = text.split(needle).join(`${q}${b}${q}`);
+          changed = true;
+        }
       }
     }
   }
