@@ -29,6 +29,8 @@
   Cache-Control: public, max-age=86400
 /favicon.svg
   Cache-Control: public, max-age=86400
+/*.pdf
+  Cache-Control: public, max-age=86400
 /site.webmanifest
   Cache-Control: public, max-age=86400
 
