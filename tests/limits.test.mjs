@@ -40,3 +40,16 @@ test("variável desabilitada não é verificada; área vazia com área desabilit
   const reasons = AvmPredict.limitReasons(model, { ...ok, area: NaN, enabledVariables: ["age", "pattern", "fiscal"] });
   assert.deepEqual(reasons, []);
 });
+
+test("confiança cai com variáveis fora do cálculo e com falta de suporte local", () => {
+  const cep = { cep8: "04109002" };
+  const forte = { n: 216 };
+  assert.equal(AvmPredict.confidence(cep, forte, []).level, "Alta");
+  assert.equal(AvmPredict.confidence(cep, forte, ["fiscal"]).level, "Média");
+  assert.equal(AvmPredict.confidence(cep, forte, ["fiscal", "pattern"]).level, "Baixa");
+  assert.equal(AvmPredict.confidence(cep, forte, ["fiscal", "pattern", "age"]).level, "Baixa"); // não desce abaixo do piso
+  assert.equal(AvmPredict.confidence({ cep8: "" }, null, []).level, "Média");
+  assert.equal(AvmPredict.confidence(cep, { n: 3 }, []).level, "Média");
+  assert.equal(AvmPredict.confidence(cep, null, ["fiscal"]).level, "Baixa");
+  assert.deepEqual(AvmPredict.confidence(cep, forte, []).reasons, ["4 variáveis no cálculo", "216 transações na região"]);
+});
