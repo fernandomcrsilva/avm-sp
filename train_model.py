@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
+import sys
+from datetime import date
 import itertools
 import json
 import re
@@ -29,13 +32,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 SCRIPT = Path(__file__).resolve()
-ROOT = SCRIPT.parents[1]
-OUTPUT = SCRIPT.with_name("model.json") if SCRIPT.parent.name == "assets" else ROOT / "dist" / "assets" / "model.json"
-DEFAULT_SOURCE = Path("/tmp/itbi_sp_2026.xlsx")
-DEFAULT_PGV = Path("/tmp/pgv_18330_anexos.pdf")
-SOURCE_URL = "https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501"
-DOWNLOAD_URL = "https://prefeitura.sp.gov.br/documents/d/fazenda/guias-de-itbi-pagas-27082026-xls-xlsx"
-PGV_LAW_URL = "https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025"
+ROOT = SCRIPT.parent
+DEFAULT_OUTPUT = ROOT / "site" / "assets" / "model.json"
+DEFAULT_LOCK = ROOT / "data" / "sources.lock.json"          # nome, URL, publicação e sha256 esperado de cada fonte
+DEFAULT_PARITY_INPUTS = ROOT / "tests" / "parity_inputs.json"
+DEFAULT_PARITY_FIXTURE = ROOT / "tests" / "parity_fixture.json"
+sys.path.insert(0, str(ROOT / "scripts"))
+from parity_fixture import write_fixture  # noqa: E402  (mesmo formato do gerador "formula")
 REFERENCE_DATE = pd.Timestamp("2026-07-01")
 ALPHA = 1.0
 
@@ -59,6 +62,25 @@ def file_sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def load_lock(lock_path: Path) -> dict:
+    return json.loads(lock_path.read_text(encoding="utf-8"))["sources"]
+
+
+def verify_source(path: Path, entry: dict) -> None:
+    """Falha se a fonte não existir ou se o sha256 divergir do lock. Sem bypass: hash errado = base errada."""
+    if not path.exists():
+        raise SystemExit(
+            f"Fonte ausente: {path}\nBaixe de {entry.get('download_url') or entry.get('page_url')} "
+            f"para data/raw/ (fora do git) e confira o sha256 {entry['sha256'][:12]}…"
+        )
+    actual = file_sha256(path)
+    if actual != entry["sha256"]:
+        raise SystemExit(
+            f"sha256 de {path.name} divergiu do lock {entry['sha256'][:12]}… (obtido {actual[:12]}…). "
+            "Se a base mudou de propósito, atualize data/sources.lock.json no mesmo commit."
+        )
 
 
 def read_source(path: Path) -> tuple[pd.DataFrame, list[str]]:
@@ -292,6 +314,7 @@ def fit_subset(
             offset += size
 
     return {
+        "pipeline": pipeline,  # removido do payload em main(); usado só na fixture de paridade
         "variables": list(subset),
         "intercept": round(float(pipeline.named_steps["model"].intercept_), 12),
         "numeric": numeric_payload,
@@ -321,7 +344,31 @@ def stats_by(frame: pd.DataFrame, key: str) -> dict:
     }
 
 
-def main(source: Path, pgv_path: Path) -> None:
+def parity_features(case: dict) -> dict:
+    """Mesmas transformações de clean_data para um imóvel de referência (age já é a idade, 0–20)."""
+    log_area = float(np.log(case["area"] / 80.0))
+    log_fiscal = float(np.log(case["fiscal"] / 3_000.0))
+    return {
+        "log_area": log_area, "log_area2": log_area ** 2, "log_area3": log_area ** 3,
+        "age": float(case["age"]), "age2": (float(case["age"]) / 10.0) ** 2,
+        "log_fiscal": log_fiscal, "log_fiscal2": log_fiscal ** 2,
+        "pattern": str(case["pattern"]),
+    }
+
+
+def main(
+    source: Path,
+    pgv_path: Path,
+    output: Path,
+    trained_at: str,
+    lock_path: Path,
+    parity_inputs: Path,
+    parity_fixture: Path,
+) -> None:
+    lock = load_lock(lock_path)
+    verify_source(source, lock["itbi"])
+    verify_source(pgv_path, lock["pgv"])
+
     raw, sheet_names = read_source(source)
     pgv, pgv_meta = read_pgv(pgv_path)
     df, audit = clean_data(raw, pgv)
@@ -332,6 +379,7 @@ def main(source: Path, pgv_path: Path) -> None:
         for subset in itertools.combinations(VARIABLE_ORDER, size):
             key = "+".join(subset)
             models[key] = fit_subset(subset, train, calibration, test)
+    pipelines = {key: model.pop("pipeline") for key, model in models.items()}
 
     default_key = "+".join(VARIABLE_ORDER)
     default_model = models[default_key]
@@ -358,7 +406,7 @@ def main(source: Path, pgv_path: Path) -> None:
     ]
     payload = {
         "version": "SP-AVM-ITBI-PGV-2026.07-R2",
-        "trained_at": "2026-09-07",
+        "trained_at": trained_at,
         "reference_date": "2026-07-01",
         "default_model_key": default_key,
         "variable_order": VARIABLE_ORDER,
@@ -400,30 +448,30 @@ def main(source: Path, pgv_path: Path) -> None:
             "financing_system": "metadado de enquadramento; não integra a precificação",
         },
         "libraries": {
-            "python": "3.12",
+            "python": f"{sys.version_info.major}.{sys.version_info.minor}",
             "pandas": pd.__version__,
             "numpy": np.__version__,
             "scikit_learn": sklearn.__version__,
-            "pypdf": "fallback para extração da PGV quando pdftotext não está disponível",
+            "pypdf": library_version("pypdf"),  # usado só sem pdftotext
         },
         "source": {
             "name": "Guias de ITBI pagas — Município de São Paulo",
             "publisher": "Secretaria Municipal da Fazenda de São Paulo",
-            "page_url": SOURCE_URL,
-            "download_url": DOWNLOAD_URL,
+            "page_url": lock["itbi"]["page_url"],
+            "download_url": lock["itbi"]["download_url"],
             "file": source.name,
-            "sha256": file_sha256(source),
+            "sha256": lock["itbi"]["sha256"],  # já conferido em verify_source
             "sheets": sheet_names,
             "transaction_date_min": df["date"].min().date().isoformat(),
             "transaction_date_max": df["date"].max().date().isoformat(),
-            "download_page_updated": "2026-08-27",
+            "download_page_updated": lock["itbi"]["published"],
         },
         "pgv_source": {
             "name": "Anexos I e II da Lei Municipal 18.330/2025 — PGV 2026",
             "publisher": "Prefeitura do Município de São Paulo",
-            "law_url": PGV_LAW_URL,
+            "law_url": lock["pgv"]["page_url"],
             "file": pgv_path.name,
-            "sha256": file_sha256(pgv_path),
+            "sha256": lock["pgv"]["sha256"],
             "field": "VM2T do Anexo II — valor unitário de metro quadrado de terreno",
             "training_join": "SQL → setor e quadra (SQ); mediana dos valores das faces de quadra",
             "subject_input": "informar o VM2T exato do trecho de logradouro e SQ do imóvel",
@@ -478,13 +526,21 @@ def main(source: Path, pgv_path: Path) -> None:
         ],
     }
 
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
+
+    def sklearn_log_price(key: str, case: dict) -> float:
+        row = pd.DataFrame([parity_features(case)])
+        features = models[key]["numeric"]["features"] + (["pattern"] if "pattern" in models[key]["variables"] else [])
+        return float(pipelines[key].predict(row[features])[0])
+
+    fixture_path = write_fixture(output, parity_inputs, parity_fixture, sklearn_log_price, reference="sklearn")
     print(json.dumps({
-        "output": str(OUTPUT),
+        "output": str(output),
+        "parity_fixture": str(fixture_path),
         "default_model": default_key,
         "metrics": payload["metrics"],
         "model_count": len(models),
@@ -499,9 +555,30 @@ def main(source: Path, pgv_path: Path) -> None:
     }, ensure_ascii=False, indent=2))
 
 
+def library_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
-    parser.add_argument("--pgv", type=Path, default=DEFAULT_PGV)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--lock", type=Path, default=DEFAULT_LOCK, help="data/sources.lock.json")
+    parser.add_argument("--source", type=Path, help="xlsx do ITBI (default: file do lock)")
+    parser.add_argument("--pgv", type=Path, help="PDF (ou .txt) dos anexos da PGV (default: file do lock)")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--trained-at", default=date.today().isoformat(), help="AAAA-MM-DD (default: hoje)")
+    parser.add_argument("--parity-inputs", type=Path, default=DEFAULT_PARITY_INPUTS)
+    parser.add_argument("--parity-fixture", type=Path, default=DEFAULT_PARITY_FIXTURE)
     args = parser.parse_args()
-    main(args.source, args.pgv)
+    sources = load_lock(args.lock)
+    main(
+        args.source or ROOT / sources["itbi"]["file"],
+        args.pgv or ROOT / sources["pgv"]["file"],
+        args.output,
+        args.trained_at,
+        args.lock,
+        args.parity_inputs,
+        args.parity_fixture,
+    )
