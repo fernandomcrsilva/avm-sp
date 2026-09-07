@@ -131,6 +131,7 @@ async function readMatricula(event) {
     calculate();
   } catch (error) {
     setReaderStatus("error", error.message);
+    AvmCommon.report("ocr_failed", { message: error.message }); // mensagem do leitor, sem conteúdo do documento
   } finally {
     input.disabled = false;
     input.value = "";
@@ -200,9 +201,12 @@ function showPanel(which) {
   $("result-content").hidden = which !== "result";
 }
 
+// Só a categoria do limite violado vai para o aviso técnico; os valores ficam no navegador.
+const REASON_CODES = [[/^área/, "area"], [/^ano de conclusão/, "year"], [/^padrão/, "pattern"], [/^valor fiscal/, "fiscal"], [/^sem a confirmação/, "declared"], [/^valor central/, "price"], [/^combinação/, "model"]];
 function refuse(reasons) {
   latestReport = null;
   setBadge("Recusada", "out");
+  AvmCommon.report("refused", { codes: reasons.map((r) => (REASON_CODES.find(([re]) => re.test(r)) || [null, "other"])[1]) });
   $("refusal-reasons").replaceChildren(...reasons.map((reason) => {
     const li = document.createElement("li");
     li.textContent = reason;
@@ -431,6 +435,7 @@ async function init() {
     resetExample();
   } catch (error) {
     $("model-loading").textContent = `Não foi possível carregar o modelo (${error.message}). Verifique a conexão e recarregue a página.`;
+    AvmCommon.report("model_load_failed", { message: error.message });
     $("model-loading").classList.add("is-error");
     setBadge("Indisponível", "out");
   }

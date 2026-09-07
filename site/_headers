@@ -33,6 +33,8 @@
   Cache-Control: public, max-age=0, must-revalidate
 /asset-manifest.json
   Cache-Control: no-store
+/version.json
+  Cache-Control: no-store
 
 # Imagens e manifesto na raiz não têm fingerprint (a URL do og:image precisa ser estável): um dia de cache.
 /*.png
