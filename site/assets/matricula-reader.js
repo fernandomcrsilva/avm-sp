@@ -166,7 +166,7 @@
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
-        await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+        await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport, intent: "print" }).promise; // sem requestAnimationFrame: renderiza mesmo com a aba em segundo plano
         onProgress({ message: `Aplicando OCR — página ${index} de ${pageCount}…`, progress: 0.42 });
         const result = await worker.recognize(canvas);
         parts.push(result.data.text || "");
