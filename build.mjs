@@ -20,7 +20,10 @@ const walk = (dir) =>
 const rel = (file) => relative(OUT, file).split(sep).join("/");
 const sha8 = (buffer) => createHash("sha256").update(buffer).digest("hex").slice(0, 8);
 
-const assets = walk(join(OUT, "assets"));
+// Diretórios versionados no nome (ex.: vendor/tessdata-4.0.0/) não recebem fingerprint por arquivo:
+// o worker do Tesseract monta os nomes (por.traineddata.gz, core .wasm.js) a partir do diretório.
+const VERSIONED_DIR = /^assets\/vendor\/(tesseract-core|tessdata)-[^/]+\//;
+const assets = walk(join(OUT, "assets")).filter((file) => !VERSIONED_DIR.test(rel(file)));
 const isScript = (file) => /\.(js|mjs)$/.test(file) && !rel(file).startsWith("assets/vendor/");
 const leaves = assets.filter((file) => !isScript(file));
 const scripts = assets.filter(isScript);
