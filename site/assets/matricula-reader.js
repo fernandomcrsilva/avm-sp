@@ -159,7 +159,9 @@
     try {
       for (let index = 1; index <= pageCount; index += 1) {
         const page = await pdf.getPage(index);
-        const viewport = page.getViewport({ scale: 1.7 });
+        const base = page.getViewport({ scale: 1 });
+        const scale = Math.min(1.7, Math.sqrt(25e6 / (base.width * base.height))); // teto de 25 Mpx por página (VULN-012)
+        const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);

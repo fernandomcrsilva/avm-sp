@@ -1,0 +1,22 @@
+# Proveniência do vendor (auditoria 2026-09-07, VULN-007). Conferido no CI com `sha256sum --strict -c SHA256SUMS`.
+# Cada arquivo é cópia byte a byte do pacote npm indicado (npm pack <pacote>@<versão>, 2026-09-07):
+#   pdfjs-dist@5.6.205        build/pdf.min.mjs, build/pdf.worker.min.mjs, LICENSE (→ PDFJS-LICENSE)
+#   tesseract.js@7.0.0        dist/tesseract.min.js, dist/worker.min.js (→ tesseract-worker.min.js), dist/*.LICENSE.txt, LICENSE.md (→ TESSERACT-LICENSE.md)
+#   tesseract.js-core@7.0.0   tesseract-core-simd-lstm.wasm.js, tesseract-core-relaxedsimd-lstm.wasm.js, LICENSE (→ tesseract-core-7.0.0/)
+#   @tesseract.js-data/por@1.0.0  4.0.0_best_int/por.traineddata.gz, package.json, README.md (→ tessdata-4.0.0_best_int/)
+# tessdata-4.0.0_best_int/LICENSE é o Apache-2.0 do tesseract-ocr/tessdata_best (origem do traineddata); não vem do pacote npm.
+0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594  PDFJS-LICENSE
+2221020ea508479dcc1221f36f2731656339230097c69ba1f78802832c0ad685  pdf.min.mjs
+51a2fd1ea47f1a9b0814e65e0c336c739c54957795ee774e8f93cb81e8028dd1  pdf.worker.min.mjs
+c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08  tessdata-4.0.0_best_int/LICENSE
+34d1877aa059f6243fa87c6a9a6f0b29cf19363a49bb687a0ae7fff10498a846  tessdata-4.0.0_best_int/package.json
+dacebc1386ddaaf8389f81094236cca0d690897cde693d48cbdaa881c86e2b4c  tessdata-4.0.0_best_int/por.traineddata.gz
+444a7cb0a5781a0fa69dd530837c9fbefa2cc868f2603ad7ba5f2aee18c6f5ad  tessdata-4.0.0_best_int/README.md
+c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08  tesseract-core-7.0.0/LICENSE
+861a536cf9ef8e63cb644d57bab39c388f37f7d6b6f60024b741c5f6b39a59b3  tesseract-core-7.0.0/tesseract-core-relaxedsimd-lstm.wasm.js
+c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38  tesseract-core-7.0.0/tesseract-core-simd-lstm.wasm.js
+b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1  TESSERACT-LICENSE.md
+000c27d9cd0def655f77b36c72a389c0ab13793aa31cb4d7aab56d09c0afbc7e  tesseract.min.js
+cdf963ced7d25a0f98901a547647b4d6e2dbe0197fd78c87a059a87b0e542fe2  tesseract.min.js.LICENSE.txt
+576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d  tesseract-worker.min.js
+45f54171aeaa1d10c0c1a66f374b7bba1f02472b1487fbe892eec04f840002ac  worker.min.js.LICENSE.txt

@@ -34,6 +34,7 @@
       const cells = row.map((raw, colIndex) => {
         if (raw === null || raw === undefined || raw === "") return "";
         const item = raw && typeof raw === "object" && Object.hasOwn(raw, "value") ? raw : cell(raw, rowIndex === 0 ? 1 : 0);
+        if (item.value === null || item.value === undefined || (typeof item.value === "number" && !Number.isFinite(item.value))) return ""; // nunca "null"/"NaN" na planilha
         const ref = `${columnName(colIndex)}${rowIndex + 1}`;
         const style = item.style ? ` s="${item.style}"` : "";
         if (typeof item.value === "number" && Number.isFinite(item.value)) {
@@ -131,6 +132,7 @@
     const p = report.property;
     const r = report.result;
     const m = report.model;
+    const used = (key, value) => (report.variables.disabled.includes(key) ? "Não usada (variável desabilitada)" : value); // VULN-006
 
     const summaryRows = [
       [cell("AVM SP — ESTIMATIVA ESTATÍSTICA DE VALOR", 3)],
@@ -143,13 +145,13 @@
       [`Faixa de ${m.coverageNominal}% — limite inferior`, cell(r.interval80[0], 2)],
       [`Faixa de ${m.coverageNominal}% — limite superior`, cell(r.interval80[1], 2)],
       ["Valor central", cell(r.estimate, 2)],
-      ["Valor unitário", cell(r.pricePerM2, 2)],
+      ["Valor unitário", r.pricePerM2 === null ? "Não calculado (área não usada)" : cell(r.pricePerM2, 2)],
       ["Domínio", r.scope],
       ["Data-base dos preços", m.referenceDateLabel],
-      ["Valor fiscal PGV informado", cell(p.fiscal, 2)],
-      ["Área construída informada (IPTU)", cell(p.area, 8)],
+      ["Valor fiscal PGV informado", used("fiscal", cell(p.fiscal, 2))],
+      ["Área construída informada (IPTU)", used("area", cell(p.area, 8))],
       ["Área privativa informada (matrícula)", Number.isFinite(p.privateArea) ? cell(p.privateArea, 8) : "Não informada"],
-      ["Idade / ano de conclusão", `${p.age} / ${p.yearBuilt}`],
+      ["Idade / ano de conclusão", used("age", `${p.age} / ${p.yearBuilt}`)],
       ["Confiança", `${report.confidence.level} — ${report.confidence.reasons.join(", ")}`],
       ["Enquadramento declarado", `${report.operation.financing} · recursos ${report.operation.funds}`],
       ["Variáveis ativas", report.variables.enabled.map((item) => report.variables.labels[item]).join(", ")],
@@ -166,7 +168,7 @@
       [cell("DADOS DECLARADOS DO IMÓVEL", 3)],
       [],
       ["Endereço", "Complemento", "Bairro", "CEP", "Cidade", "UF", "Tipologia", "Área privativa (m²)", "Área construída (m²)", "Idade (anos)", "Ano de conclusão (IPTU)", "Padrão IPTU", "VM2T PGV (R$/m² terreno)", "Enquadramento", "Recursos", "Variáveis ativas", "Variáveis desabilitadas"].map((v) => cell(v, 1)),
-      [p.address || "", p.complement || "", p.district || "", p.cep || "", "São Paulo", "SP", "Apartamento residencial", Number.isFinite(p.privateArea) ? cell(p.privateArea, 8) : "", cell(p.area, 8), cell(p.age, 5), cell(p.yearBuilt, 5), `${p.patternLabel} (cód. ${p.pattern})`, cell(p.fiscal, 2), report.operation.financing, report.operation.funds, report.variables.enabled.map((item) => report.variables.labels[item]).join(", "), report.variables.disabled.length ? report.variables.disabled.map((item) => report.variables.labels[item]).join(", ") : "Nenhuma"],
+      [p.address || "", p.complement || "", p.district || "", p.cep || "", "São Paulo", "SP", "Apartamento residencial", Number.isFinite(p.privateArea) ? cell(p.privateArea, 8) : "", used("area", cell(p.area, 8)), used("age", cell(p.age, 5)), used("age", cell(p.yearBuilt, 5)), used("pattern", `${p.patternLabel} (cód. ${p.pattern})`), used("fiscal", cell(p.fiscal, 2)), report.operation.financing, report.operation.funds, report.variables.enabled.map((item) => report.variables.labels[item]).join(", "), report.variables.disabled.length ? report.variables.disabled.map((item) => report.variables.labels[item]).join(", ") : "Nenhuma"],
       [],
       [cell("Nota", 4), cell("O cálculo usa a área construída do cadastro do IPTU. A área privativa da matrícula é registrada para identificação e conferência e não entra na estimativa. Endereço, complemento, bairro, CEP, enquadramento (SFH/SFI) e origem dos recursos (SBPE/outros) também não entram no cálculo do valor.", 4)],
     ];

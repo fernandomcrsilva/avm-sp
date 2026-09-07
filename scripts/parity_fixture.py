@@ -2,10 +2,10 @@
 """Gera tests/parity_fixture.json: ln(preço) esperado para cada caso de tests/parity_inputs.json em cada
 um dos 15 modelos. Só stdlib.
 
-Referência "formula": aplica a equação hedônica lida do model.json (este script).
-Referência "sklearn": train_model.py chama write_fixture() com os pipelines recém-treinados, que é a
-verdade de fato. O teste JS (tests/parity.test.mjs) aceita qualquer das duas, mas exige que o sha256 do
-model.json bata com o da fixture.
+Referência "formula": aplica a equação hedônica lida do model.json (este script). Serve só para depurar
+a equação localmente: o teste JS (tests/parity.test.mjs) EXIGE reference "sklearn" e o sha256 do model.json
+igual ao da fixture, para que um model.json editado à mão não passe no CI (VULN-004).
+Referência "sklearn": train_model.py chama write_fixture() com os pipelines recém-treinados, a verdade de fato.
 
 Uso: python3 scripts/parity_fixture.py [model.json] [parity_inputs.json] [parity_fixture.json]
 """

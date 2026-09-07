@@ -11,6 +11,8 @@ Produção: https://avm.heybrain.uk · Metodologia: https://avm.heybrain.uk/meto
 | [DEPLOY.md](DEPLOY.md) | Arquitetura, decisões e justificativas |
 | [RUNBOOK.md](RUNBOOK.md) | Publicar, reverter, atualizar o modelo, operar |
 | [docs/aceite-2026-09-07.md](docs/aceite-2026-09-07.md) | Checklist de aceite com evidências e relatório final |
+| [docs/security-audit-2026-09-07.md](docs/security-audit-2026-09-07.md) | Auditoria de segurança (8 agentes, 28 achados) |
+| [docs/aceite-seguranca-2026-09-07.md](docs/aceite-seguranca-2026-09-07.md) | Fechamento da auditoria: o que foi corrigido, em qual PR, e o que só o dono faz |
 | [docs/v7/](docs/v7/) | Documentação do pacote v7 recebido em 2026-09-07 (histórico) |
 
 ## Layout

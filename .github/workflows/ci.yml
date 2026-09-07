@@ -38,6 +38,8 @@ jobs:
         run: npm run build
       - name: Lint (sintaxe JS/Python e config do wrangler)
         run: npm run lint
+      - name: Proveniência do vendor (site/assets/vendor/SHA256SUMS)
+        run: cd site/assets/vendor && sha256sum --strict -c SHA256SUMS
       - name: Validador de schema do model.json
         run: npm run validate && python3 -m unittest tests.test_validate_model
       - name: Paridade Python↔JS e limites de aplicabilidade

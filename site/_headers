@@ -13,6 +13,7 @@
   Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+  Strict-Transport-Security: max-age=15552000
 
 # Tudo em /assets/ tem fingerprint no nome ou diretório versionado: cache imutável de 1 ano.
 /assets/*

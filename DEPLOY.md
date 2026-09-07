@@ -18,7 +18,7 @@ navegador ── GET / ──▶ Cloudflare edge ──▶ Workers Static Assets
    ├── GET /assets/model.<sha8>.json (preload; 8 KB brotli) → equação em predict.js → faixa 80%
    ├── OCR opcional: pdf.js + tesseract.js com core WASM e idioma pt embarcados (vendor versionado)
    ├── clique em "Localizar CEP" (opcional) → nominatim.openstreetmap.org (única saída de dado do usuário)
-   └── POST /api/erro (aviso técnico anônimo) ──▶ src/worker.js ──▶ Workers Logs (7 dias)
+   └── POST /api/erro (aviso técnico anônimo) ──▶ src/worker.js ──▶ Workers Logs (3 dias no Free)
 ```
 
 Fontes de treino (fora do git, hash conferido): Guias de ITBI pagas (SF-SP) e Anexos I/II da Lei 18.330/2025 (PGV 2026).
@@ -54,7 +54,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 ## Segurança e privacidade
 
 Cabeçalhos em toda resposta de asset (`site/_headers`): CSP fechada, `nosniff`, `Referrer-Policy`,
-`Permissions-Policy`, COOP e CORP. HSTS de 180 dias herdado da zona (sem preload). Sem cookies, sem
+`Permissions-Policy`, COOP e CORP. HSTS de 180 dias na zona e também em `_headers` (sem preload). Sem cookies, sem
 `localStorage`, sem analytics. Dados do imóvel e matrícula ficam no navegador; endereço sai só por clique.
 
 ## Custo
