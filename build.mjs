@@ -3,6 +3,7 @@
 // ponytail: ordem fixa (folhas → scripts → html) em vez de grafo de dependências. Hoje só
 // matricula-reader.js referencia vendor/, e index.html referencia o resto. Se um script passar a
 // importar outro script, mova-o para a lista de folhas ou generalize.
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join, posix, relative, sep } from "node:path";
@@ -65,5 +66,16 @@ for (const file of scripts) { rewrite(file); fingerprint(file); }
 for (const file of walk(OUT).filter((file) => file.endsWith(".html"))) rewrite(file);
 
 writeFileSync(join(OUT, "asset-manifest.json"), `${JSON.stringify(Object.fromEntries(renamed), null, 1)}\n`);
+
+// /version.json: o que está no ar sem abrir o dashboard (Fase 8). Servido com no-store via _headers.
+const model = JSON.parse(readFileSync(join(SRC, "assets", "model.json"), "utf8"));
+const gitSha = process.env.GITHUB_SHA || (() => { try { return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(); } catch { return "unknown"; } })();
+writeFileSync(join(OUT, "version.json"), `${JSON.stringify({
+  git_sha: gitSha,
+  built_at: new Date().toISOString(),
+  model_version: model.version,
+  model_trained_at: model.trained_at,
+  model_asset: renamed.get("assets/model.json"),
+}, null, 1)}\n`);
 console.log(`${renamed.size} assets com fingerprint em ${OUT}/`);
 for (const [from, to] of renamed) console.log(`  ${from} -> ${to}`);

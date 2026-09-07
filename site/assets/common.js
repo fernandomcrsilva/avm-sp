@@ -25,5 +25,41 @@
     document.querySelectorAll("[data-model-trained]").forEach((el) => { el.textContent = isoDate(model.trained_at); });
   }
 
-  root.AvmCommon = { loadModel, fillVersion, isoDate, monthLabel };
+  // Aviso técnico anônimo para POST /api/erro (Workers Logs). Nunca inclui dados do imóvel nem do usuário:
+  // só tipo do erro, mensagem do próprio código, script de origem, página e versão do modelo. Máx. 5 por página.
+  let reported = 0;
+  let modelVersion = null;
+  function report(kind, detail = {}) {
+    if (reported >= 5) return;
+    reported += 1;
+    const payload = JSON.stringify({
+      kind,
+      message: detail.message ? String(detail.message).slice(0, 200) : undefined,
+      source: detail.source ? String(detail.source).split("?")[0].split("/").pop().slice(0, 120) : undefined,
+      codes: detail.codes,
+      page: location.pathname,
+      model_version: modelVersion,
+    });
+    try {
+      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/erro", new Blob([payload], { type: "application/json" }))) {
+        fetch("/api/erro", { method: "POST", body: payload, headers: { "content-type": "application/json" }, keepalive: true }).catch(() => {});
+      }
+    } catch (_) { /* sem rede: o erro já está na tela */ }
+  }
+  window.addEventListener("error", (event) => {
+    if (!event.filename || new URL(event.filename, location.href).origin !== location.origin) return; // só scripts próprios
+    report("js_error", { message: event.message, source: event.filename });
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    report("unhandled_rejection", { message: event.reason && (event.reason.message || String(event.reason)) });
+  });
+
+  const originalLoad = loadModel;
+  async function loadModelTracked() {
+    const model = await originalLoad();
+    modelVersion = model.version;
+    return model;
+  }
+
+  root.AvmCommon = { loadModel: loadModelTracked, fillVersion, isoDate, monthLabel, report };
 })(globalThis);

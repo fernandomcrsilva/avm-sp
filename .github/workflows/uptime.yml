@@ -1,0 +1,19 @@
+name: uptime
+# Checagem sintética: a cada 30 min, GET https://avm.heybrain.uk/version.json tem de responder 200 com
+# model_version. Falha → o job falha e o GitHub avisa por e-mail o dono do repositório.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET /version.json e /
+        run: |
+          set -eu
+          curl -fsS --max-time 20 -o version.json -w 'version.json: %{http_code} em %{time_total}s\n' https://avm.heybrain.uk/version.json
+          grep -q '"model_version"' version.json
+          cat version.json
+          curl -fsS --max-time 20 -o /dev/null -w 'index: %{http_code} em %{time_total}s\n' https://avm.heybrain.uk/
