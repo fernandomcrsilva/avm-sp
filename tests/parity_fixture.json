@@ -3,7 +3,7 @@
  "reference": "sklearn",
  "model_version": "SP-AVM-ITBI-PGV-2026.07-R2",
  "model_trained_at": "2026-09-07",
- "model_sha256": "7661dd05c4c44847abd36f7b8d736e0111031f56a49d14410dd33dc7124a6ec3",
+ "model_sha256": "bc5f566fb114b00ce6a7e73e131cd06bc9bdd92fe57bd3ddb1664c2cfc2970f8",
  "tolerance_log": 1e-09,
  "cases": [
   {

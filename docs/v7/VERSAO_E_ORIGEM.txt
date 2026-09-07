@@ -3,6 +3,6 @@ Versão do site: 7
 Versão do modelo: SP-AVM-ITBI-PGV-2026.07-R2
 Commit de origem: 7f2c5207d954d84ce1e426d52d7923b5c9728267
 Data de montagem do pacote: 2026-09-07
-URL ativa: https://avm-sp-engenharia-2026.edurs1957.chatgpt.site
+URL ativa: hospedagem anterior, privada, desativada
 Estado de acesso na montagem: restrito ao proprietário
 

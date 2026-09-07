@@ -4,6 +4,10 @@ data/raw/
 .env
 .env.*
 .dev.vars
+.dev.vars.*
+*.pem
+*.key
+.npmrc
 # toolchains
 node_modules/
 .venv/

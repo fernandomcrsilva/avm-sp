@@ -353,6 +353,7 @@ def stats_by(frame: pd.DataFrame, key: str) -> dict:
             "median_fiscal": round(float(row.median_fiscal)),
         }
         for index, row in grouped.iterrows()
+        if int(row.n) >= 5  # grupo pequeno expõe transações individuais; app.js cai para cep3 quando falta cep4
     }
 
 
