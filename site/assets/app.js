@@ -265,6 +265,7 @@ function calculate(event) {
       algorithm: model.hyperparameters.algorithm,
       referenceDate: model.reference_date,
       referenceDateLabel: AvmCommon.monthLabel(model.reference_date),
+      coverageNominal: model.hyperparameters.interval_nominal_coverage_pct,
       metrics: selected.metrics,
       defaultMetrics: model.metrics,
       hyperparameters: model.hyperparameters,
@@ -314,7 +315,7 @@ function renderResult(report) {
     ["Origem do preenchimento", v.documentSource ? `${v.documentSource.fileName} · ${v.documentSource.method}` : "Informação manual"],
   ]);
   $("report-values").innerHTML = dl([
-    ["Faixa de 80% de probabilidade", range],
+    [`Faixa de ${model.hyperparameters.interval_nominal_coverage_pct}% de probabilidade`, range],
     ["Valor central", money.format(result.estimate)],
     ["Valor unitário", result.pricePerM2 ? `${money.format(result.pricePerM2)}/m²` : null],
     ["Data-base dos preços", report.model.referenceDateLabel],
@@ -327,7 +328,8 @@ function renderResult(report) {
     ["Algoritmo", report.model.algorithm],
     ["Amostra de treino", `${number.format(report.model.eda.rows_model)} compras e vendas`],
     ["Erro percentual mediano deste modelo", `${decimal.format(report.model.metrics.med_ape_pct)}%`],
-    ["Cobertura observada da faixa de 80%", `${decimal.format(report.model.metrics.interval_80_coverage_pct)}%`],
+    [`Cobertura observada da faixa de ${model.hyperparameters.interval_nominal_coverage_pct}%`, `${decimal.format(report.model.metrics.interval_80_coverage_pct)}%`],
+    ["Fontes", `${model.source.name} (${model.source.publisher}); ${model.pgv_source.name}`],
     ["Transações na região do CEP", result.localSupport ? `${number.format(result.localSupport.n)} (${result.localSupport.level}; não altera o preço)` : null],
   ]);
   $("report-risks").innerHTML = report.risks.map((risk) => `<li>${escapeHtml(risk)}</li>`).join("");
@@ -419,6 +421,10 @@ async function init() {
   try {
     model = await AvmCommon.loadModel();
     AvmCommon.fillVersion(model);
+    document.querySelectorAll("[data-coverage]").forEach((el) => { el.textContent = model.hyperparameters.interval_nominal_coverage_pct; });
+    $("declare-use").textContent = model.applicability.use_iptu;
+    $("footer-src-itbi").href = model.source.page_url;
+    $("footer-src-pgv").href = model.pgv_source.law_url;
     populatePatterns();
     applyLimitsToForm();
     updateVariableControls();

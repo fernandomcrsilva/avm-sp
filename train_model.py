@@ -41,6 +41,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from parity_fixture import write_fixture  # noqa: E402  (mesmo formato do gerador "formula")
 REFERENCE_DATE = pd.Timestamp("2026-07-01")
 ALPHA = 1.0
+CONFORMAL_LEVEL = 0.80  # cobertura nominal da faixa; exportada em hyperparameters.interval_nominal_coverage_pct
 BASE_YEAR = 2026  # ano-base da idade (idade = BASE_YEAR - ano de conclusão ACC)
 # Limites de aplicabilidade: usados nos filtros de clean_data E exportados em payload["applicability"],
 # de onde a UI lê para recusar estimativas fora do domínio de treino. Mude aqui, muda nos dois.
@@ -280,7 +281,7 @@ def fit_subset(
 
     cal_prediction = pipeline.predict(calibration[input_features])
     cal_actual = np.log(calibration["price"].to_numpy())
-    q80 = float(np.quantile(np.abs(cal_actual - cal_prediction), 0.80, method="higher"))
+    q80 = float(np.quantile(np.abs(cal_actual - cal_prediction), CONFORMAL_LEVEL, method="higher"))
 
     test_prediction = pipeline.predict(test[input_features])
     test_actual = np.log(test["price"].to_numpy())
@@ -468,7 +469,8 @@ def main(
             "candidate_variables": "área, idade, padrão cadastral IPTU e valor fiscal PGV",
             "models_fitted": len(models),
             "validation": "divisão temporal 70% treino, 15% calibração e 15% teste",
-            "interval": "split conformal independente por subconjunto, cobertura nominal de 80%",
+            "interval": f"split conformal independente por subconjunto, cobertura nominal de {round(CONFORMAL_LEVEL * 100)}%",
+            "interval_nominal_coverage_pct": round(CONFORMAL_LEVEL * 100),
             "continuous_area": True,
             "nature_filter": "somente Natureza de Transação igual a 1.Compra e venda",
             "condominium_fee": "excluída da base, do treinamento e da inferência",

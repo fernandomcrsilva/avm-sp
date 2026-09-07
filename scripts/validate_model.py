@@ -130,6 +130,9 @@ def validate(m: dict) -> list[str]:
         if default_cats and not default_cats <= listed:
             bad(f"categorias do modelo default sem entrada em patterns: {sorted(default_cats - listed)}")
 
+    nominal = m["hyperparameters"].get("interval_nominal_coverage_pct")
+    if not isinstance(nominal, int) or not (50 <= nominal <= 99):
+        bad(f"hyperparameters.interval_nominal_coverage_pct ausente ou fora de [50, 99]: {nominal!r}")
     for lib in ("python", "pandas", "numpy", "scikit_learn"):
         if not isinstance(m["libraries"].get(lib), str) or not m["libraries"][lib]:
             bad(f"libraries.{lib} ausente")
