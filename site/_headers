@@ -1,4 +1,19 @@
 # Cabeçalhos servidos pelo Workers Static Assets. Só valem para respostas de assets.
+
+# Segurança (Fase 4), em toda resposta. Sem 'unsafe-inline': não há script nem style inline no site.
+# - 'wasm-unsafe-eval': o OCR (Tesseract) compila WebAssembly a partir de bytes; sem isso o OCR não roda.
+#   Não libera eval() de JavaScript.
+# - connect-src inclui só o Nominatim (OpenStreetMap), acionado por clique explícito em "Localizar CEP".
+# - worker-src 'self': workers do pdf.js e do Tesseract são arquivos da própria origem (sem blob:).
+# - manifest-src 'self': site.webmanifest (Fase 6).
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
 # Tudo em /assets/ tem fingerprint no nome ou diretório versionado: cache imutável de 1 ano.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
