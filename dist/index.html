@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Aplicativo demonstrativo de precificação automatizada de apartamentos residenciais em São Paulo/SP, com relatório técnico individualizado.">
+  <meta name="theme-color" content="#071a2b">
+  <title>AVM SP — Precificação Imobiliária</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="#" aria-label="AVM SP — início">
+      <span class="brand-mark" aria-hidden="true">A</span>
+      <span><strong>AVM/SP</strong><small>precificação imobiliária</small></span>
+    </a>
+    <nav class="tabs" aria-label="Seções do aplicativo">
+      <button class="tab is-active" data-tab="simulator" aria-selected="true">Precificar</button>
+      <button class="tab" data-tab="methodology" aria-selected="false">Relatório do modelo</button>
+      <button class="tab" data-tab="governance" aria-selected="false">Governança</button>
+    </nav>
+    <div class="model-pill"><i></i><span id="header-version">Carregando modelo</span></div>
+  </header>
+
+  <main>
+    <section id="simulator" class="view is-active" aria-labelledby="simulator-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">São Paulo · apartamentos residenciais</p>
+          <h1 id="simulator-title">Precificação individualizada</h1>
+        </div>
+        <div class="scope-line" aria-label="Escopo do modelo">
+          <span>35–250 m²</span><span>0–20 anos</span><span>até R$ 2,25 mi</span>
+        </div>
+      </div>
+
+      <div class="workspace">
+        <form id="valuation-form" class="panel form-panel">
+          <div class="panel-head">
+            <div><span class="step">01</span><h2>Dados do imóvel</h2></div>
+            <button type="button" class="text-button" id="reset-form">Usar exemplo</button>
+          </div>
+
+          <section class="document-reader" aria-labelledby="matricula-title">
+            <div>
+              <strong id="matricula-title">Preencher pela matrícula</strong>
+              <p>Selecione um PDF ou uma imagem. O aplicativo tentará extrair o endereço e a área automaticamente.</p>
+            </div>
+            <label class="secondary-button file-button" for="matricula-file">Selecionar e ler matrícula
+              <input id="matricula-file" type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" hidden>
+            </label>
+            <div id="matricula-status" class="reader-status" role="status" aria-live="polite">Nenhum documento selecionado.</div>
+          </section>
+
+          <div class="field full">
+            <label for="address">Logradouro e número</label>
+            <div class="input-action"><input id="address" name="address" value="Rua Vergueiro, 2.650" autocomplete="street-address" required><button id="lookup-address" type="button">Localizar</button></div>
+            <small id="address-lookup-status">Ao preencher ou alterar o endereço, o aplicativo consulta automaticamente CEP e bairro.</small>
+          </div>
+          <div class="form-grid two">
+            <div class="field"><label for="district">Bairro</label><input id="district" name="district" value="Vila Mariana" required></div>
+            <div class="field"><label for="cep">CEP da unidade</label><input id="cep" name="cep" value="04109-002" inputmode="numeric" autocomplete="postal-code" maxlength="9" required><small id="district-support">A localização estatística é obtida pelos 3 e 4 primeiros dígitos do CEP.</small></div>
+          </div>
+
+          <div class="form-grid two">
+            <div class="field" data-variable-field="area"><label for="area">Área privativa para precificação</label><div class="input-unit"><input id="area" name="area" type="number" min="35" max="250" step="any" inputmode="decimal" value="78" required><span>m²</span></div><small>Na leitura da matrícula, somente a área privativa é utilizada; áreas total, comum, útil ou construída são ignoradas.</small></div>
+            <div class="field" data-variable-field="age"><label for="age">Idade</label><div class="input-unit"><input id="age" name="age" type="number" min="0" max="20" value="8" required><span>anos</span></div><small>Calculada a partir do ano de conclusão cadastral.</small></div>
+          </div>
+
+          <div class="form-grid two">
+            <div class="field" data-variable-field="pattern"><label for="pattern">Padrão cadastral IPTU</label><select id="pattern" name="pattern"><option value="22">2-C · predominante</option></select><small>Padrão vertical do cadastro municipal (2-A a 2-E).</small></div>
+            <div class="field" data-variable-field="fiscal"><label for="fiscal">Valor fiscal PGV (VM2T)</label><div class="input-unit prefix"><input id="fiscal" name="fiscal" type="number" min="1" max="50000" step="1" value="6500" required><span>R$</span></div><small>Valor unitário do terreno no Anexo II, para o Codlog/SQ do imóvel.</small></div>
+          </div>
+
+          <fieldset class="toggle-group variable-controls">
+            <legend>Variáveis incluídas no cálculo</legend>
+            <label class="toggle"><input id="var-area" type="checkbox" data-variable="area" checked><span>Área privativa</span></label>
+            <label class="toggle"><input id="var-age" type="checkbox" data-variable="age" checked><span>Idade</span></label>
+            <label class="toggle"><input id="var-pattern" type="checkbox" data-variable="pattern" checked><span>Padrão IPTU</span></label>
+            <label class="toggle"><input id="var-fiscal" type="checkbox" data-variable="fiscal" checked><span>Valor fiscal</span></label>
+            <small id="active-model-note">4 variáveis ativas · modelo completo</small>
+          </fieldset>
+
+          <div class="form-grid two">
+            <div class="field"><label for="system">Sistema da operação</label><select id="system" name="system"><option>SFH</option><option>SFI</option></select></div>
+            <div class="field"><label for="funding">Origem dos recursos</label><select id="funding" name="funding"><option>SBPE</option><option>Outros recursos</option></select></div>
+          </div>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Calcular precificação <span aria-hidden="true">→</span></button>
+            <p>A matrícula é processada localmente. Para localizar CEP e bairro, somente o endereço é consultado no OpenStreetMap.</p>
+          </div>
+        </form>
+
+        <aside class="panel result-panel" aria-live="polite">
+          <div class="panel-head">
+            <div><span class="step">02</span><h2>Resultado AVM</h2></div>
+            <span id="scope-badge" class="status-badge pending">Analisando</span>
+          </div>
+
+          <div id="model-loading" class="loading-state"><span></span>Preparando o modelo estatístico…</div>
+          <div id="result-content" hidden>
+            <p class="result-label">Valor de precificação</p>
+            <p id="estimate" class="estimate">—</p>
+            <p id="price-m2" class="price-m2">—</p>
+
+            <div class="interval-block">
+              <div><span>Intervalo preditivo (80%)</span><strong id="interval">—</strong></div>
+              <div class="range-track"><i id="range-fill"></i><b id="range-point"></b></div>
+            </div>
+
+            <div class="metric-grid">
+              <div><span>Confiabilidade</span><strong id="confidence">—</strong></div>
+              <div><span>Suporte local</span><strong id="support-count">—</strong></div>
+              <div><span>Mediana local</span><strong id="local-median">—</strong></div>
+              <div><span>Data-base</span><strong>jul/2026</strong></div>
+            </div>
+
+            <div id="risk-box" class="risk-box"></div>
+
+            <div class="result-actions">
+              <button id="print-report" class="primary-button" type="button">Emitir relatório / PDF</button>
+              <button id="download-xlsx" class="secondary-button" type="button">Baixar Excel (.xlsx)</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <article id="individual-report" class="report-card">
+        <div class="report-cover">
+          <div>
+            <p class="eyebrow">Relatório individualizado de precificação</p>
+            <h2>AVM — Apartamento residencial</h2>
+            <p id="report-id">Identificação —</p>
+          </div>
+          <div class="report-result"><small>Valor estimado</small><strong id="report-estimate">—</strong><span id="report-scope">—</span></div>
+        </div>
+        <div class="report-grid">
+          <section><h3>Imóvel e operação</h3><dl id="report-property"></dl></section>
+          <section><h3>Resultado da precificação</h3><dl id="report-values"></dl></section>
+          <section><h3>Modelo e suporte</h3><dl id="report-model"></dl></section>
+          <section><h3>Riscos e condicionantes</h3><ul id="report-risks"></ul></section>
+        </div>
+        <div class="report-note">
+          <strong>Natureza do documento.</strong> Relatório técnico automatizado de precificação, sem vistoria e sem análise jurídica. A decisão sobre eventual dispensa de inspeção, a elegibilidade da garantia e a aprovação do crédito pertencem à instituição proponente.
+        </div>
+        <footer class="report-footer"><span>AVM/SP · versão <b id="report-version">—</b></span><span id="report-time">—</span></footer>
+      </article>
+    </section>
+
+    <section id="methodology" class="view" aria-labelledby="methodology-title">
+      <div class="section-heading report-heading">
+        <div><p class="eyebrow">Relatório técnico do modelo</p><h1 id="methodology-title">Como o AVM foi construído</h1></div>
+      </div>
+
+      <div class="method-summary">
+          <div><small>Modelos</small><strong>15 Ridge</strong><span>um por subconjunto de variáveis</span></div>
+        <div><small>Amostra tratada</small><strong id="eda-rows">—</strong><span>transações com ITBI pago</span></div>
+        <div><small>R² em log</small><strong id="metric-r2">—</strong><span>conjunto de teste</span></div>
+        <div><small>MdAPE</small><strong id="metric-mdape">—</strong><span>erro percentual mediano</span></div>
+      </div>
+
+      <div class="method-layout">
+        <article class="panel prose-panel">
+          <span class="chapter">1</span><h2>Base, recorte e tratamento</h2>
+          <p>O conjunto de desenvolvimento utiliza as Guias de ITBI pagas publicadas pela Secretaria Municipal da Fazenda de São Paulo. São transações declaradas e tributadas, não preços pedidos em anúncios. O arquivo oficial reúne as competências de janeiro a julho de 2026 e contém datas de transação entre agosto de 2025 e julho de 2026.</p>
+          <p>O filtro de natureza é exato: somente registros identificados como <strong>“1.Compra e venda”</strong> foram considerados; as demais naturezas foram ignoradas. Depois, foram retidas compras e vendas integrais de apartamentos em condomínio, com cadastro predial ativo, área de 35 a 250 m², construção concluída de 2006 em diante e valor declarado entre R$ 50 mil e R$ 2,25 milhões. Duplicidades e valores unitários incompatíveis foram removidos. A taxa de condomínio não integra a fonte nem o modelo.</p>
+          <p>O valor fiscal é o <strong>VM2T do Anexo II da PGV 2026</strong>, isto é, o valor unitário de metro quadrado de terreno. No treino, o SQL forneceu setor e quadra (SQ); havendo várias faces na mesma quadra, foi usada a mediana. Para o imóvel avaliado, deve-se informar o VM2T exato do trecho de logradouro e SQ.</p>
+          <div class="source-list">
+            <a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501" target="_blank" rel="noreferrer">Fonte oficial — ITBI/SP ↗</a>
+            <a href="https://prefeitura.sp.gov.br/documents/d/fazenda/guias-de-itbi-pagas-27082026-xls-xlsx" target="_blank" rel="noreferrer">Arquivo Excel oficial — 2026 ↗</a>
+            <a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025" target="_blank" rel="noreferrer">PGV 2026 — Lei 18.330/2025 e anexos ↗</a>
+          </div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="chart-head"><div><span class="chapter">EDA</span><h2>Distribuição das áreas</h2></div><small>m² cadastrais</small></div>
+          <div id="area-chart" class="bar-chart"></div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="chart-head"><div><span class="chapter">EDA</span><h2>Preço unitário declarado</h2></div><small>R$/m² · faixas</small></div>
+          <div id="price-chart" class="bar-chart cyan"></div>
+        </article>
+
+        <article class="panel chart-panel wide">
+          <div class="chart-head"><div><span class="chapter">EDA</span><h2>Valor fiscal PGV na amostra</h2></div><small>VM2T · R$/m² de terreno</small></div>
+          <div id="fiscal-chart" class="bar-chart fiscal"></div>
+        </article>
+
+        <article class="panel prose-panel">
+          <span class="chapter">2</span><h2>Variáveis e algoritmo</h2>
+          <p>As quatro variáveis candidatas são área, idade, padrão vertical do IPTU e valor fiscal PGV (VM2T). Para o imóvel avaliando, a área utilizada é a área privativa informada na matrícula. CEP, endereço, fonte de recursos e sistema SFH/SFI são dados de identificação, suporte ou enquadramento e não alteram a estimativa. Condomínio, dormitórios, banheiros e vagas não são utilizados.</p>
+          <p>A leitura da matrícula é uma etapa de preenchimento assistido, realizada no navegador com PDF.js e OCR Tesseract.js. Os valores extraídos não substituem a conferência técnica do documento. A localização de CEP e bairro utiliza dados do OpenStreetMap e também deve ser confirmada pelo usuário.</p>
+          <pre><code>y = ln(valor de transação declarado)
+área = polinômio cúbico de ln(m² / 80)
+idade = idade + idade²
+valor fiscal = ln(VM2T / 3.000) + termo quadrático
+padrão = one-hot(2-A a 2-E)
+modelos = 15 Ridge(alpha=1,0), um para cada
+          combinação não vazia das 4 variáveis
+divisão = temporal: 70% treino, 15% calibração,
+          15% teste
+intervalo = split conformal (80%)</code></pre>
+          <p>A curva cúbica torna a resposta da área contínua: cada metro quadrado adicional altera a estimativa. Ao desabilitar uma variável, o aplicativo seleciona o modelo treinado especificamente com o subconjunto restante; não zera artificialmente um coeficiente. A idade é obtida do ano de conclusão cadastrado no IPTU. A base oficial usada no treinamento contém área construída cadastral; a utilização da área privativa do imóvel avaliando e a eventual diferença entre as definições ficam registradas como condicionante metodológica.</p>
+        </article>
+
+        <article class="panel chart-panel wide">
+          <div class="chart-head"><div><span class="chapter">3</span><h2>Peso estrutural dos grupos</h2></div><small>norma relativa dos coeficientes</small></div>
+          <div id="importance-chart" class="importance-chart"></div>
+        </article>
+
+        <article class="panel metrics-panel wide">
+          <div><span class="chapter">4</span><h2>Validação fora da amostra</h2></div>
+          <div class="validation-grid">
+            <div><small>R² (log)</small><strong id="v-r2">—</strong></div>
+            <div><small>MAPE</small><strong id="v-mape">—</strong></div>
+            <div><small>MdAPE</small><strong id="v-mdape">—</strong></div>
+            <div><small>RMSE</small><strong id="v-rmse">—</strong></div>
+            <div><small>Cobertura do intervalo</small><strong id="v-coverage">—</strong></div>
+            <div><small>Amostra de teste</small><strong id="v-test">—</strong></div>
+          </div>
+          <p>Os dados foram ordenados pela data da transação e separados em treino (70%), calibração conformal (15%) e teste final mais recente (15%). Essa validação temporal reduz o risco de usar informações futuras para explicar o passado. Produção exige monitoramento de deriva, backtesting e aprovação independente.</p>
+        </article>
+
+        <article class="panel library-panel wide">
+          <span class="chapter">5</span><h2>Bibliotecas e reprodutibilidade</h2>
+          <div id="libraries" class="library-grid"></div>
+          <p>O modelo treinado foi exportado para JSON e a inferência desta página reproduz a equação hedônica no navegador. A versão, a fonte, o hash do arquivo, os filtros, os hiperparâmetros e as métricas ficam documentados.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="governance" class="view" aria-labelledby="governance-title">
+      <div class="section-heading report-heading">
+        <div><p class="eyebrow">Controles regulatórios</p><h1 id="governance-title">Matriz de aderência e limites</h1></div>
+        <span class="status-badge warning">Protótipo demonstrativo</span>
+      </div>
+
+      <div class="governance-intro">
+        <p>A Resolução 4.754/2019 incluiu no art. 11, §4º, da Resolução 4.676/2018 a faculdade de usar modelo próprio ou de terceiros. O atendimento não depende apenas do algoritmo: envolve documentação, verificabilidade, gestão de risco, segregação de funções e relatório individualizado.</p>
+      </div>
+
+      <div class="compliance-grid">
+        <article><span>Art. 11, §4º, I</span><h2>Consistência e verificabilidade</h2><p>Algoritmo, fonte, filtros, variáveis, semente, bibliotecas, hiperparâmetros, métricas e versão são documentados.</p><b class="done">Demonstrado</b></article>
+        <article><span>Art. 11, §4º, II</span><h2>Risco e eventual dispensa de vistoria</h2><p>O relatório expõe intervalo, suporte local e riscos. A decisão de dispensar inspeção deve permanecer nos controles da instituição.</p><b class="partial">Depende da instituição</b></article>
+        <article><span>Art. 11, §4º, III</span><h2>Segregação de funções</h2><p>Deve haver independência entre responsáveis pelo modelo, crédito e áreas com conflito de interesses.</p><b class="partial">Controle organizacional</b></article>
+        <article><span>Art. 11, §4º, IV</span><h2>Relatório individualizado</h2><p>O aplicativo gera identificação, entradas, estimativa, intervalo, suporte, versão, riscos e condicionantes para cada imóvel.</p><b class="done">Implementado</b></article>
+      </div>
+
+      <div class="limits-grid">
+        <article class="panel"><h2>O que o AVM cobre</h2><ul><li>Estimativa técnica automatizada do valor de apartamento residencial.</li><li>Controle do recorte: São Paulo, 35–250 m², até 20 anos e teto informado.</li><li>Rastreabilidade da versão e dados de entrada.</li><li>Intervalo preditivo e alerta de baixa representatividade.</li></ul></article>
+        <article class="panel danger-panel"><h2>O que permanece fora</h2><ul><li>Análise jurídica de titularidade, ônus e impedimentos.</li><li>Patologias, conservação, padrão construtivo e alterações não informadas.</li><li>Confirmação de área, idade, ocupação e identidade física do bem.</li><li>Decisão de crédito, enquadramento definitivo ou dispensa automática de visita.</li></ul></article>
+      </div>
+
+      <div class="regulatory-links">
+        <a href="https://normativos.bcb.gov.br/Lists/Normativos/Attachments/50628/Res_4676_v16_P.pdf" target="_blank" rel="noreferrer"><strong>Resolução 4.676/2018</strong><span>texto consolidado vigente ↗</span></a>
+        <a href="https://normativos.bcb.gov.br/Lists/Normativos/Attachments/50848/Res_4754_v1_O.pdf" target="_blank" rel="noreferrer"><strong>Resolução 4.754/2019</strong><span>inclusão do AVM ↗</span></a>
+        <a href="https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?numero=5255&tipo=Resolu%C3%A7%C3%A3o+CMN" target="_blank" rel="noreferrer"><strong>Resolução CMN 5.255/2025</strong><span>teto SFH de R$ 2,25 mi ↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer"><span>AVM/SP — demonstração técnica</span><span>Matrícula processada no navegador · endereço consultado no OpenStreetMap</span></footer>
+  <script src="assets/vendor/tesseract.min.js" defer></script>
+  <script src="assets/matricula-reader.js" defer></script>
+  <script src="assets/xlsx-export.js" defer></script>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+VALIDAÇÃO DO PACOTE — 2026-09-07
+
+Resultado: aprovado para entrega do código-fonte e demonstração controlada.
+Não representa homologação para uso institucional ou abertura pública.
+
+Verificações executadas:
+- Sintaxe dos módulos JavaScript: OK.
+- Sintaxe dos módulos PDF.js: OK.
+- Estrutura do model.json: OK.
+- Sintaxe dos algoritmos Python: OK.
+- Referências locais usadas pelo index.html: OK.
+- Inicialização por servidor HTTP local: OK.
+- Carregamento do modelo SP-AVM-ITBI-PGV-2026.07-R2: OK.
+- Quantidade de matrículas de teste: 20.
+- Matrículas com hashes SHA-256 distintos: 20.
+- Leitura da estrutura dos 20 PDFs por pdfinfo: OK.
+- Integridade do arquivo Excel de índice: OK.
+
+Limitação confirmada:
+- O PDF.js e o respectivo worker estão locais.
+- O OCR Tesseract ainda precisa do Core/WASM e do idioma português embarcados
+  e configurados localmente para operar sem dependência externa.
+
+Consulte PENDENCIAS_PARA_PRODUCAO.md para o diagnóstico completo.
+

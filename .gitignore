@@ -9,3 +9,10 @@ node_modules/
 .venv/
 __pycache__/
 .wrangler/
+
+# tooling local
+.claude/launch.json
+
+# matrículas reais com dados pessoais de terceiros (README: "Não publicar")
+testes/
+.openai/
