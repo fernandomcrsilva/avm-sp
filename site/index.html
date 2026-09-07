@@ -36,8 +36,9 @@
       <span><strong>AVM/SP</strong><small>estimativa estatística de valor</small></span>
     </a>
     <nav class="tabs" aria-label="Páginas">
-      <a class="tab is-active" href="/" aria-current="page">Estimar</a>
+      <a class="tab is-active" href="/" aria-current="page">Precificação</a>
       <a class="tab" href="/metodologia">Metodologia</a>
+      <a class="tab" href="/manual">Manual</a>
     </nav>
     <div class="model-pill"><i></i><span data-model-version>Carregando modelo</span></div>
   </header>
@@ -79,17 +80,28 @@
           </div>
 
           <div class="form-grid two">
+            <div class="field"><label for="complement">Complemento <span class="optional">opcional</span></label><input id="complement" name="complement" autocomplete="address-line2" placeholder="Apto, torre, bloco"><small>Identifica a unidade no relatório. Não entra no cálculo.</small></div>
+            <div class="field"><label for="district">Bairro <span class="optional">opcional</span></label><input id="district" name="district" autocomplete="address-level3" placeholder="Bairro"><small>Preenchido junto com o CEP quando você usa Localizar CEP.</small></div>
+          </div>
+
+          <div class="form-grid two">
             <div class="field"><label for="cep">CEP <span class="optional">opcional</span></label><input id="cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"><small id="district-support">O CEP não entra no preço; mostra quantas transações da base ficam na mesma região.</small></div>
-            <div class="field" data-variable-field="area"><label for="area">Área construída (IPTU)</label><div class="input-unit"><input id="area" name="area" type="number" step="any" inputmode="decimal" value="78" required><span>m²</span></div><small>O modelo foi treinado com a área construída do cadastro do IPTU. A área privativa da matrícula pode ser diferente.</small></div>
+            <div class="field"><label for="private-area">Área privativa (matrícula) <span class="optional">opcional</span></label><div class="input-unit"><input id="private-area" name="private-area" type="number" step="any" inputmode="decimal"><span>m²</span></div><small id="private-area-note">Área de uso exclusivo da unidade, como consta na matrícula. Serve para identificar e conferir o imóvel; não é a área que entra no cálculo.</small></div>
           </div>
 
           <div class="form-grid two">
-            <div class="field" data-variable-field="age"><label for="year-built">Ano de conclusão da construção (ACC no IPTU)</label><input id="year-built" name="year-built" type="number" step="1" inputmode="numeric" value="2018" required><small id="age-note">—</small></div>
-            <div class="field" data-variable-field="pattern"><label for="pattern">Padrão cadastral IPTU</label><select id="pattern" name="pattern"></select><small>Padrão do cadastro municipal, indicado no carnê do IPTU.</small></div>
+            <div class="field" data-variable-field="area"><label for="area">Área construída (IPTU)</label><div class="input-unit"><input id="area" name="area" type="number" step="any" inputmode="decimal" value="78" required><span>m²</span></div><small>Esta é a área do cálculo: o modelo foi treinado com a área construída do cadastro do IPTU, que inclui a fração de áreas comuns e por isso costuma ser maior que a privativa.</small></div>
+            <div class="field" data-variable-field="age"><label for="age">Idade do edifício</label><div class="input-unit"><input id="age" name="age" type="number" step="1" inputmode="numeric" value="8" required><span>anos</span></div><small id="age-note">—</small></div>
           </div>
 
           <div class="form-grid two">
-            <div class="field" data-variable-field="fiscal"><label for="fiscal">Valor fiscal do terreno (VM2T)</label><div class="input-unit prefix"><input id="fiscal" name="fiscal" type="number" step="1" inputmode="numeric" value="6500" required><span>R$</span></div><small>Valor unitário do m² de terreno no Anexo II da PGV, para o trecho de logradouro e a quadra (SQ) do imóvel.</small></div>
+            <div class="field" data-variable-field="pattern"><label for="pattern">Padrão cadastral do IPTU</label><select id="pattern" name="pattern"></select><small>Padrão do cadastro municipal, indicado no carnê do IPTU. Não equivale ao estado de conservação.</small></div>
+            <div class="field" data-variable-field="fiscal"><label for="fiscal">Valor fiscal da PGV (VM2T)</label><div class="input-unit prefix"><input id="fiscal" name="fiscal" type="number" step="1" inputmode="numeric" value="6500" required><span>R$</span></div><small>Valor unitário do m² de terreno no Anexo II da PGV, para o trecho de logradouro e a quadra (SQ) do imóvel.</small></div>
+          </div>
+
+          <div class="form-grid two">
+            <div class="field"><label for="financing">Enquadramento da operação</label><select id="financing" name="financing"><option value="SFH">SFH — Sistema Financeiro da Habitação</option><option value="SFI">SFI — Sistema de Financiamento Imobiliário</option></select><small>Registrado no relatório para conferir o enquadramento declarado. Não altera a estimativa de mercado.</small></div>
+            <div class="field"><label for="funds">Origem dos recursos</label><select id="funds" name="funds"><option value="SBPE">SBPE — Sistema Brasileiro de Poupança e Empréstimo</option><option value="Outros">Outros recursos</option></select><small>Registrada no relatório. Também não altera a estimativa de mercado.</small></div>
           </div>
 
           <fieldset class="toggle-group variable-controls">
@@ -104,7 +116,7 @@
           <label class="declare"><input id="declared" type="checkbox" checked><span>Confirmo que é um <strong>apartamento residencial</strong> (uso IPTU <span id="declare-use">—</span>), com inscrição predial ativa (SQL), e que a operação é de <strong>compra e venda</strong>.</span></label>
 
           <div class="form-actions">
-            <button class="primary-button" type="submit">Estimar valor <span aria-hidden="true">→</span></button>
+            <button class="primary-button" type="submit">Calcular precificação <span aria-hidden="true">→</span></button>
             <p>Tudo é calculado no seu navegador. Nenhum dado é enviado a servidor, exceto o endereço, e só se você clicar em Localizar CEP.</p>
           </div>
         </form>
@@ -133,13 +145,14 @@
               <div><span>Data-base dos preços</span><strong id="result-reference">—</strong></div>
               <div><span>Transações na região do CEP</span><strong id="support-count">—</strong></div>
               <div><span>Mediana na região</span><strong id="local-median">—</strong></div>
+              <div class="metric-wide"><span>Confiança</span><strong id="confidence">—</strong></div>
             </div>
 
             <div id="risk-box" class="risk-box"></div>
 
             <div class="result-actions">
-              <button id="print-report" class="primary-button" type="button">Imprimir resumo</button>
-              <button id="download-xlsx" class="secondary-button" type="button">Baixar Excel (.xlsx)</button>
+              <button id="print-report" class="primary-button" type="button">Gerar relatório em PDF</button>
+              <button id="download-xlsx" class="secondary-button" type="button">Baixar Excel</button>
             </div>
           </div>
 
@@ -172,7 +185,7 @@
 
   <footer class="app-footer">
     <span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b> · fontes: <a id="footer-src-itbi" href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501" target="_blank" rel="noreferrer">Guias de ITBI pagas, Secretaria Municipal da Fazenda de São Paulo</a> e <a id="footer-src-pgv" href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025" target="_blank" rel="noreferrer">Lei Municipal 18.330/2025</a></span>
-    <nav aria-label="Páginas institucionais"><a href="/metodologia">Metodologia</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
+    <nav aria-label="Páginas institucionais"><a href="/manual">Manual</a><a href="/metodologia">Metodologia</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
   </footer>
   <script src="assets/vendor/tesseract.min.js" defer></script>
   <script src="assets/matricula-reader.js" defer></script>

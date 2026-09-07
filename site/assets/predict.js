@@ -65,7 +65,7 @@
       reasons.push({ code: "area", text: `área de ${num.format(input.area)} m² fora da faixa de treino de ${a.area_m2[0]} a ${a.area_m2[1]} m²` });
     }
     if (enabled.includes("age") && !between(input.yearBuilt, a.year_built)) {
-      reasons.push({ code: "year", text: `ano de conclusão ${input.yearBuilt} fora da faixa de treino de ${a.year_built[0]} a ${a.year_built[1]}` });
+      reasons.push({ code: "year", text: `idade de ${a.base_year - input.yearBuilt} anos (conclusão em ${input.yearBuilt}) fora da faixa de treino de ${a.age_years[0]} a ${a.age_years[1]} anos` });
     }
     if (enabled.includes("pattern") && !a.pattern_codes.includes(Number(input.pattern))) {
       reasons.push({ code: "pattern", text: `padrão IPTU código ${input.pattern} sem transações na base de treino` });
@@ -79,11 +79,36 @@
     return reasons;
   }
 
+  // Confiança do manual: "indicador de suporte e adequação do caso aos dados e variáveis disponíveis".
+  // ponytail: escada de três níveis a partir do que já existe (variáveis fora do cálculo e transações na
+  // região). Não é um número do modelo, e o motivo vai junto na tela para não passar por métrica calibrada.
+  const CONFIDENCE_LEVELS = ["Baixa", "Média", "Alta"];
+  function confidence(v, stats, disabled) {
+    let level = 2;
+    const reasons = [];
+    if (disabled.length) {
+      level -= Math.min(disabled.length, 2);
+      reasons.push(`${disabled.length === 1 ? "1 variável" : `${disabled.length} variáveis`} fora do cálculo`);
+    } else {
+      reasons.push("4 variáveis no cálculo");
+    }
+    if (v.cep8.length !== 8) {
+      level -= 1;
+      reasons.push("sem CEP para medir o suporte local");
+    } else if (!stats || stats.n < 40) {
+      level -= 1;
+      reasons.push(stats ? `só ${num.format(stats.n)} transações na região` : "nenhuma transação da base na região");
+    } else {
+      reasons.push(`${num.format(stats.n)} transações na região`);
+    }
+    return { level: CONFIDENCE_LEVELS[Math.max(0, level)], reasons };
+  }
+
   function priceReason(model, price) {
     const [lo, hi] = model.applicability.price_brl;
     if (between(price, [lo, hi])) return null;
     return { code: "price", text: `valor central estimado de ${brl.format(price)} fora da faixa de preços de treino de ${brl.format(lo)} a ${brl.format(hi)}` };
   }
 
-  root.AvmPredict = { modelKey, features, logPrice, interval, limitReasons, priceReason };
+  root.AvmPredict = { modelKey, features, logPrice, interval, limitReasons, priceReason, confidence };
 })(typeof globalThis !== "undefined" ? globalThis : this);
