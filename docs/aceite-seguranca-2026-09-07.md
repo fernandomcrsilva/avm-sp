@@ -68,7 +68,17 @@ Não feito, de propósito: o job opcional que retreina em tag (VULN-004) fica fo
 
 ## Publicação
 
-Pendente do ok explícito: `git tag v1.0.2 && git push origin v1.0.2`. Depois do deploy:
+Publicado em 2026-09-07 com ok explícito do dono:
+
+- `v1.0.2` foi criada em `6069e66` (merge do #10), antes dos merges de #12, #13 e #14; o CI a implantou (o commit está em `main`).
+- `v1.0.3` em `8a7f37b` (`main` completa) substituiu a anterior; `versions deploy` 100% e `/version.json` conferido pelo job `deploy`.
+
+Conferido em produção depois da `v1.0.3`: `git_sha 8a7f37b…`, `model_sha256 bc5f566f…` igual ao `sha256sum site/assets/model.json`
+e à fixture de paridade; cabeçalhos CSP, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, COOP e CORP presentes em `/`;
+`/api/erro` → 204 (same-origin JSON), 403 (sem `Sec-Fetch-Site`), 415 (`text/plain`), 405 (GET), 404 em `avm-sp.heybrain.workers.dev`;
+HTML publicado sem `#declared` pré-marcado; `/metodologia` com o campo do SHA-256; `SHA256SUMS` servido em `/assets/vendor/`.
+
+Comandos usados:
 
 ```bash
 curl -s https://avm.heybrain.uk/version.json                       # git_sha da tag e model_sha256
