@@ -39,7 +39,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 | Faixa antes do ponto | O número redondo sozinho passa precisão que o modelo não tem. Cobertura nominal vem do modelo. |
 | Posicionamento público, sem SFH/SFI/SBPE | Decisão do dono do projeto. O v7 falava com instituição de crédito; o aviso legal (NBR 14653-2) é o oposto disso. |
 | Nominatim mantido, só por clique | Decisão do dono do projeto. Sem gravação em `localStorage`, sem Referer, texto explícito na tela e na privacidade; `connect-src` libera só esse host. |
-| OCR embarcado (core WASM + português) | Regra "sem CDN de terceiros". Custo: 3,9 MB por variante do core, carregados só quando o usuário abre uma matrícula digitalizada. |
+| OCR embarcado (core WASM + português), só variantes SIMD e relaxed-SIMD | Regra "sem CDN de terceiros". 3,9 MB por variante, carregados só quando o usuário abre uma matrícula digitalizada. Navegador sem WASM SIMD (Safari < 16.4) fica sem OCR, mas lê PDF com texto. |
 | `intent: "print"` na renderização para OCR | O modo padrão do pdf.js usa `requestAnimationFrame` e trava em aba oculta. |
 | CSP com `'wasm-unsafe-eval'` e Nominatim em `connect-src` | Únicas exceções à política do prompt; a primeira compila WebAssembly (não libera `eval`), a segunda é a geocodificação escolhida. Sem `unsafe-inline`: alturas de gráfico via CSSOM. |
 | Bot Fight Mode e JavaScript Detections desligados na zona | No plano Free o JSD é obrigatório com Bot Fight Mode e injeta script inline (bloqueado pela CSP, erro de console, Lighthouse 93) e cookie `__cf_bm`. Block AI Bots e rate limit mantidos. |
