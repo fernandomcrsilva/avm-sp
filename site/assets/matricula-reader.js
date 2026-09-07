@@ -127,8 +127,13 @@
 
   async function createOcrWorker(onProgress) {
     if (!global.Tesseract?.createWorker) throw new Error("O recurso de OCR não pôde ser carregado.");
+    // Tudo local: o worker escolhe a variante do core (simd/relaxedsimd/base, sempre -lstm) dentro do
+    // diretório e monta vendor/tessdata-…/por.traineddata.gz a partir de langPath. Sem CDN.
     return global.Tesseract.createWorker("por", 1, {
       workerPath: resolveAssetUrl("vendor/tesseract-worker.min.js"),
+      corePath: resolveAssetUrl("vendor/tesseract-core-7.0.0"),
+      langPath: resolveAssetUrl("vendor/tessdata-4.0.0_best_int"),
+      cacheMethod: "none", // o cache HTTP imutável já cobre; evita gravar 2,4 MB no IndexedDB
       workerBlobURL: false,
       logger: (message) => {
         if (message.status === "recognizing text") {
