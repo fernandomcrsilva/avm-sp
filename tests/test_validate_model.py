@@ -40,6 +40,11 @@ class ValidateModelTest(unittest.TestCase):
         m["metrics"] = m["models"][m["default_model_key"]]["metrics"]
         self.assertTrue(any("r2_log < 0.5" in p for p in validate(m)))
 
+    def test_applicability_range_fails(self):
+        m = copy.deepcopy(MODEL)
+        m["applicability"]["area_m2"] = [250, 35]
+        self.assertTrue(any("applicability.area_m2" in p for p in validate(m)))
+
     def test_bad_sha_fails(self):
         m = copy.deepcopy(MODEL)
         m["source"]["sha256"] = "abc"
