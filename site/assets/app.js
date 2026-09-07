@@ -4,24 +4,15 @@ let model = null;
 let latestReport = null;
 let documentReadState = null;
 let lastGeocodeRequestAt = 0;
-let lastGeocodedAddress = "";
+const geocodeCache = new Map(); // só memória desta aba: nada do endereço fica gravado no navegador
 
 const $ = (id) => document.getElementById(id);
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
-const VARIABLE_LABELS = { area: "Área privativa", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
-
-function setTab(name) {
-  document.querySelectorAll(".tab").forEach((button) => {
-    const active = button.dataset.tab === name;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-selected", String(active));
-  });
-  document.querySelectorAll(".view").forEach((view) => view.classList.toggle("is-active", view.id === name));
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
+const VARIABLE_LABELS = { area: "Área construída", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
+const EXAMPLE = { address: "Rua Vergueiro, 2650", cep: "04109-002", area: 78, yearBuilt: 2018, pattern: "22", fiscal: 6500 };
 
 function cepDigits(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 8);
@@ -34,12 +25,22 @@ function formatCep(value) {
 
 function numericField(id) {
   const input = $(id);
+  if (input.value.trim() === "") return NaN;
   if (Number.isFinite(input.valueAsNumber)) return input.valueAsNumber;
-  return Number(String(input.value || "").trim().replace(",", "."));
+  return Number(input.value.trim().replace(",", "."));
 }
 
-function normalizeAddressKey(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-BR");
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+}
+
+function hashText(text) {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36).toUpperCase().padStart(7, "0").slice(0, 7);
 }
 
 function setReaderStatus(type, message) {
@@ -48,36 +49,29 @@ function setReaderStatus(type, message) {
   status.textContent = message;
 }
 
-function cachedGeocode(key) {
-  try {
-    const value = localStorage.getItem(`avm-sp:geocode:${key}`);
-    return value ? JSON.parse(value) : null;
-  } catch (_) {
-    return null;
-  }
+function setBadge(text, kind) {
+  const badge = $("scope-badge");
+  badge.textContent = text;
+  badge.className = `status-badge ${kind}`;
 }
 
-function saveGeocode(key, value) {
-  try {
-    localStorage.setItem(`avm-sp:geocode:${key}`, JSON.stringify(value));
-  } catch (_) {
-    // O preenchimento funciona mesmo quando o armazenamento local está indisponível.
-  }
-}
-
-async function locateAddress(force = false) {
+// Geocodificação: só por clique explícito. É o único momento em que algo digitado sai do navegador.
+async function locateAddress() {
   const address = $("address").value.trim();
-  const key = normalizeAddressKey(address);
-  if (address.length < 5 || (!force && key === lastGeocodedAddress)) return null;
+  const status = $("address-lookup-status");
+  if (address.length < 5) {
+    status.textContent = "Digite o endereço com número antes de localizar.";
+    return;
+  }
+  const key = address.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
   const button = $("lookup-address");
   button.disabled = true;
-  $("address-lookup-status").textContent = "Consultando CEP e bairro…";
-
+  status.textContent = "Consultando o OpenStreetMap…";
   try {
-    let selected = cachedGeocode(key);
+    let selected = geocodeCache.get(key);
     if (!selected) {
       const elapsed = Date.now() - lastGeocodeRequestAt;
-      if (elapsed < 1100) await new Promise((resolve) => setTimeout(resolve, 1100 - elapsed));
+      if (elapsed < 1100) await new Promise((resolve) => setTimeout(resolve, 1100 - elapsed)); // política de uso do Nominatim: 1 req/s
       const params = new URLSearchParams({
         q: `${address}, São Paulo, SP, Brasil`,
         format: "jsonv2",
@@ -88,32 +82,25 @@ async function locateAddress(force = false) {
         "accept-language": "pt-BR",
       });
       lastGeocodeRequestAt = Date.now();
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { headers: { Accept: "application/json" } });
-      if (!response.ok) throw new Error(`serviço de endereço respondeu ${response.status}`);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+        headers: { Accept: "application/json" },
+        referrerPolicy: "no-referrer",
+      });
+      if (!response.ok) throw new Error(`serviço respondeu ${response.status}`);
       const results = await response.json();
       const candidate = results.find((item) => item.address?.postcode) || results[0];
       if (!candidate) throw new Error("endereço não localizado em São Paulo");
       const details = candidate.address || {};
-      selected = {
-        cep: details.postcode || "",
-        district: details.suburb || details.neighbourhood || details.quarter || details.city_district || "",
-        displayName: candidate.display_name || address,
-      };
-      saveGeocode(key, selected);
+      selected = { cep: details.postcode || "", district: details.suburb || details.neighbourhood || details.quarter || details.city_district || "" };
+      geocodeCache.set(key, selected);
     }
-
-    if (selected.cep) $("cep").value = formatCep(selected.cep);
-    if (selected.district) $("district").value = selected.district;
-    if (!selected.cep && !selected.district) throw new Error("CEP e bairro não disponíveis para este endereço");
-    lastGeocodedAddress = key;
+    if (!selected.cep) throw new Error("CEP não disponível para este endereço");
+    $("cep").value = formatCep(selected.cep);
     if (documentReadState) documentReadState.geocode = "OpenStreetMap/Nominatim";
-    const completed = [selected.cep ? `CEP ${formatCep(selected.cep)}` : null, selected.district || null].filter(Boolean).join(" · ");
-    $("address-lookup-status").innerHTML = `${escapeHtml(completed)} preenchido automaticamente. Confira antes de emitir o relatório. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
+    status.innerHTML = `CEP ${escapeHtml(formatCep(selected.cep))}${selected.district ? ` · ${escapeHtml(selected.district)}` : ""} preenchido. Confira. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
     calculate();
-    return selected;
   } catch (error) {
-    $("address-lookup-status").textContent = `Não foi possível preencher automaticamente: ${error.message}. Informe ou confira CEP e bairro manualmente.`;
-    return null;
+    status.textContent = `Não foi possível localizar: ${error.message}. Informe o CEP manualmente, se quiser.`;
   } finally {
     button.disabled = false;
   }
@@ -129,8 +116,7 @@ async function readMatricula(event) {
     const result = await globalThis.AVMMatricula.read(file, ({ message }) => setReaderStatus("busy", message));
     $("address").value = result.address || "";
     $("area").value = result.area ? String(result.area) : "";
-    $("cep").value = "";
-    $("district").value = "";
+    $("cep").value = result.cep ? formatCep(result.cep) : "";
     documentReadState = {
       fileName: result.fileName,
       method: result.method,
@@ -141,8 +127,7 @@ async function readMatricula(event) {
     };
     const found = [result.address ? "endereço" : null, result.area ? `${result.areaLabel.toLocaleLowerCase("pt-BR")} ${areaNumber.format(result.area)} m²` : null].filter(Boolean);
     const warning = result.warning ? ` ${result.warning}.` : "";
-    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.join(" e ")}. Confira os dados.${warning}`);
-    if (result.address) await locateAddress(true);
+    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados; a área da matrícula é a privativa, e o modelo usa a área construída do IPTU.${warning}`);
     calculate();
   } catch (error) {
     setReaderStatus("error", error.message);
@@ -153,132 +138,77 @@ async function readMatricula(event) {
 }
 
 function activeVariables() {
-  return [...document.querySelectorAll("[data-variable]")]
-    .filter((input) => input.checked)
-    .map((input) => input.dataset.variable);
+  return [...document.querySelectorAll("[data-variable]")].filter((input) => input.checked).map((input) => input.dataset.variable);
 }
 
 function getInputs() {
+  const yearBuilt = numericField("year-built");
   return {
     address: $("address").value.trim(),
-    district: $("district").value.trim(),
     cep: formatCep($("cep").value),
     cep8: cepDigits($("cep").value),
     area: numericField("area"),
-    age: numericField("age"),
+    yearBuilt,
+    age: Number.isFinite(yearBuilt) ? model.applicability.base_year - yearBuilt : NaN,
     pattern: String($("pattern").value),
     fiscal: numericField("fiscal"),
-    system: $("system").value,
-    funding: $("funding").value,
+    declared: $("declared").checked,
     enabledVariables: activeVariables(),
     documentSource: documentReadState ? { ...documentReadState } : null,
   };
-}
-
-function selectedModelKey(enabled) {
-  return AvmPredict.modelKey(model, enabled);
 }
 
 function patternLabel(code) {
   return model.patterns.find((item) => String(item.code) === String(code))?.label || `código ${code}`;
 }
 
-function rawPrediction(v) {
-  const modelKey = selectedModelKey(v.enabledVariables);
-  const selected = model.models[modelKey];
-  if (!selected) throw new Error("Combinação de variáveis sem modelo treinado.");
-  const logValue = AvmPredict.logPrice(model, modelKey, v); // equação única, testada contra o Python
-
-  return {
-    value: Math.exp(logValue),
-    cep3: v.cep8.slice(0, 3),
-    cep4: v.cep8.slice(0, 4),
-    modelKey,
-    selectedModel: selected,
-  };
-}
-
-function hashText(text) {
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36).toUpperCase().padStart(7, "0").slice(0, 7);
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
-}
-
-function eligibility(v, estimate, location) {
-  const reasons = [];
-  if (!v.address) reasons.push("endereço não informado");
-  if (!v.district) reasons.push("bairro não informado");
-  if (v.cep8.length !== 8) reasons.push("CEP inválido");
-  else if (!model.cep3_stats[location.cep3]) reasons.push("CEP sem suporte na base de São Paulo");
-  if (!(v.area >= 35 && v.area <= 250)) reasons.push("área fora de 35–250 m²");
-  if (!(v.age >= 0 && v.age <= 20)) reasons.push("idade fora de 0–20 anos");
-  if (v.enabledVariables.includes("pattern") && !model.patterns.some((item) => String(item.code) === v.pattern)) reasons.push("padrão IPTU sem cobertura");
-  if (v.enabledVariables.includes("fiscal") && !(v.fiscal >= model.eda.fiscal_min && v.fiscal <= model.eda.fiscal_max)) {
-    reasons.push(`valor fiscal fora do intervalo observado de ${money.format(model.eda.fiscal_min)} a ${money.format(model.eda.fiscal_max)}/m²`);
-  }
-  if (v.funding !== "SBPE") reasons.push("origem de recursos fora do escopo SBPE definido para o projeto");
-  if (!Number.isFinite(estimate)) reasons.push("não foi possível calcular uma estimativa");
-  else if (estimate > 2_250_000) reasons.push("valor estimado acima do teto de R$ 2.250.000 definido para o projeto");
-  return { ok: reasons.length === 0, reasons };
-}
-
-function localSupport(location) {
-  const exact = model.cep4_stats[location.cep4];
-  if (exact) return { ...exact, level: "CEP4", key: location.cep4 };
-  const broad = model.cep3_stats[location.cep3];
-  if (broad) return { ...broad, level: "CEP3", key: location.cep3 };
+function localSupport(cep8) {
+  if (cep8.length !== 8) return null;
+  const exact = model.cep4_stats[cep8.slice(0, 4)];
+  if (exact) return { ...exact, level: "CEP4", key: cep8.slice(0, 4) };
+  const broad = model.cep3_stats[cep8.slice(0, 3)];
+  if (broad) return { ...broad, level: "CEP3", key: cep8.slice(0, 3) };
   return null;
 }
 
-function confidenceFor(v, interval, stats) {
-  const width = (interval.high - interval.low) / interval.value;
-  let score = 100;
-  if (!stats || stats.n < 15) score -= 34;
-  else if (stats.n < 40) score -= 20;
-  else if (stats.n < 80) score -= 8;
-  score -= (4 - v.enabledVariables.length) * 6;
-  if (v.enabledVariables.includes("area") && (v.area < model.eda.area_q1 || v.area > model.eda.area_q3)) score -= 8;
-  if (v.enabledVariables.includes("area") && v.area > 170) score -= 12;
-  if (v.enabledVariables.includes("fiscal") && (v.fiscal < model.eda.fiscal_q1 || v.fiscal > model.eda.fiscal_q3)) score -= 8;
-  if (width > 0.8) score -= 18;
-  else if (width > 0.55) score -= 10;
-  score = Math.max(20, Math.min(95, Math.round(score)));
-  return { score, label: score >= 78 ? "Alta" : score >= 55 ? "Média" : "Baixa" };
-}
-
-function riskList(v, scope, confidence, stats) {
-  const disabled = model.variable_order.filter((variable) => !v.enabledVariables.includes(variable));
+function riskList(v, stats, disabled) {
   const risks = [
-    "A base oficial contém valores de transação declarados para o ITBI, que podem diferir do preço efetivo ou do valor de mercado.",
-    "Taxa de condomínio, dormitórios, banheiros, vagas e estado de conservação não integram o modelo.",
+    "Os preços de treino são os valores declarados nas guias de ITBI, que podem diferir do preço efetivamente pago.",
+    "Condomínio, dormitórios, banheiros, vagas, andar, vista e estado de conservação não entram no modelo.",
+    "O modelo usa a área construída do cadastro do IPTU. Se a área informada foi a privativa da matrícula, a estimativa parte de uma definição diferente da usada no treino.",
   ];
   if (v.documentSource) {
-    if (v.documentSource.addressFound && v.documentSource.areaFound) risks.push("O endereço e a área privativa foram preenchidos por leitura automática da matrícula e devem ser conferidos no documento original antes do uso do relatório.");
-    else if (v.documentSource.addressFound) risks.push("O endereço foi preenchido por leitura automática da matrícula e deve ser conferido no documento original antes do uso do relatório.");
-    else if (v.documentSource.areaFound) risks.push("A área privativa foi preenchida por leitura automática da matrícula e deve ser conferida no documento original antes do uso do relatório.");
+    const parts = [v.documentSource.addressFound ? "o endereço" : null, v.documentSource.areaFound ? "a área" : null].filter(Boolean);
+    if (parts.length) risks.push(`${parts.join(" e ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática da matrícula e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} no documento.`);
   }
-  risks.push("Para o imóvel avaliando, utiliza-se a área privativa informada na matrícula; a base de treinamento contém área construída cadastral, e diferenças entre essas definições podem afetar a estimativa.");
   if (v.enabledVariables.includes("fiscal")) {
-    risks.push("O VM2T deve corresponder exatamente ao trecho de logradouro e à SQ do imóvel; no treinamento, quadras com várias faces foram representadas pela mediana dos VM2T.");
+    risks.push("O VM2T deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; no treino, quadras com várias faces entraram pela mediana.");
   }
-  if (disabled.length) risks.push(`Modelo reduzido: ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")} ${disabled.length === 1 ? "foi desabilitada" : "foram desabilitadas"} no cálculo.`);
-  if (!stats || stats.n < 40) risks.push("O suporte amostral da região postal é reduzido; recomenda-se revisão humana e pesquisa complementar.");
-  if (v.enabledVariables.includes("area") && v.area > 170) risks.push("A área está na cauda superior da amostra de desenvolvimento.");
-  if (confidence.label === "Baixa") risks.push("A confiabilidade calculada é baixa; não se recomenda dispensar inspeção com base apenas neste resultado.");
-  if (!scope.ok) risks.push(`Fora do escopo: ${scope.reasons.join("; ")}.`);
-  risks.push("Não foram verificadas identidade física, ocupação, documentação, titularidade, ônus, patologias ou alterações do imóvel.");
+  if (disabled.length) {
+    risks.push(`Modelo reduzido: ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")} ${disabled.length === 1 ? "não entrou" : "não entraram"} no cálculo, e a faixa é a desse modelo menor.`);
+  }
+  if (v.cep8.length === 8 && (!stats || stats.n < 40)) {
+    risks.push("Poucas transações na região do CEP informado; a faixa reflete o comportamento geral da cidade, não particularidades locais.");
+  }
+  risks.push("Não foram verificadas documentação, titularidade, ônus, ocupação, patologias nem a existência física do imóvel.");
   return risks;
 }
 
-function dl(rows) {
-  return rows.map(([term, value]) => `<dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
+function showPanel(which) {
+  $("model-loading").hidden = which !== "loading";
+  $("refusal").hidden = which !== "refusal";
+  $("result-content").hidden = which !== "result";
+}
+
+function refuse(reasons) {
+  latestReport = null;
+  setBadge("Recusada", "out");
+  $("refusal-reasons").replaceChildren(...reasons.map((reason) => {
+    const li = document.createElement("li");
+    li.textContent = reason;
+    return li;
+  }));
+  showPanel("refusal");
 }
 
 function calculate(event) {
@@ -286,64 +216,56 @@ function calculate(event) {
   if (!model) return;
   const v = getInputs();
   $("cep").value = v.cep;
-  if (![v.area, v.age, v.fiscal].every(Number.isFinite) || v.area <= 0 || v.fiscal <= 0 || !v.enabledVariables.length) {
+  $("age-note").textContent = Number.isFinite(v.age)
+    ? `${v.age} ${v.age === 1 ? "ano" : "anos"} em ${model.applicability.base_year}, o ano-base do modelo.`
+    : "Informe o ano de conclusão da construção.";
+
+  const required = { area: v.area, age: v.yearBuilt, fiscal: v.fiscal };
+  const missing = v.enabledVariables.filter((key) => key in required && !Number.isFinite(required[key]));
+  if (missing.length || !v.enabledVariables.length) {
     latestReport = null;
-    $("scope-badge").textContent = "Dados incompletos";
-    $("scope-badge").className = "status-badge pending";
-    $("model-loading").innerHTML = "<strong>Informe a área privativa e os demais campos obrigatórios para calcular.</strong>";
-    $("model-loading").hidden = false;
-    $("result-content").hidden = true;
+    setBadge("Dados incompletos", "pending");
+    $("model-loading").textContent = "Preencha os campos das variáveis habilitadas para estimar.";
+    showPanel("loading");
     return;
   }
 
-  let prediction;
-  try {
-    prediction = rawPrediction(v);
-  } catch (error) {
-    $("scope-badge").textContent = "Modelo indisponível";
-    $("scope-badge").className = "status-badge out";
-    return;
-  }
-  const q = prediction.selectedModel.conformal_q80_log;
-  const interval = {
-    value: prediction.value,
-    low: prediction.value * Math.exp(-q),
-    high: prediction.value * Math.exp(q),
-  };
-  const scope = eligibility(v, prediction.value, prediction);
-  const stats = localSupport(prediction);
-  const confidence = confidenceFor(v, interval, stats);
-  const risks = riskList(v, scope, confidence, stats);
+  const reasons = AvmPredict.limitReasons(model, v); // recusa ANTES de calcular
+  if (reasons.length) return refuse(reasons);
+
+  const modelKey = AvmPredict.modelKey(model, v.enabledVariables);
+  const selected = model.models[modelKey];
+  if (!selected) return refuse(["combinação de variáveis sem modelo treinado"]);
+  const logValue = AvmPredict.logPrice(model, modelKey, v);
+  const interval = AvmPredict.interval(logValue, selected.conformal_q80_log);
+  const priceReason = AvmPredict.priceReason(model, interval.value);
+  if (priceReason) return refuse([priceReason]);
+
+  const stats = localSupport(v.cep8);
+  const disabled = model.variable_order.filter((variable) => !v.enabledVariables.includes(variable));
   const timestamp = new Date();
-  const fingerprint = hashText(JSON.stringify({ ...v, version: model.version, modelKey: prediction.modelKey }));
-  const id = `AVM-SP-${timestamp.toISOString().slice(0, 10).replaceAll("-", "")}-${fingerprint}`;
+  const fingerprint = hashText(JSON.stringify({ ...v, documentSource: null, version: model.version, modelKey }));
 
   latestReport = {
-    id,
+    id: `AVM-SP-${timestamp.toISOString().slice(0, 10).replaceAll("-", "")}-${fingerprint}`,
     issuedAt: timestamp.toISOString(),
-    purpose: "Precificação automatizada de garantia imobiliária — demonstração técnica",
-    property: v,
-    variables: {
-      enabled: v.enabledVariables,
-      disabled: model.variable_order.filter((variable) => !v.enabledVariables.includes(variable)),
-      labels: VARIABLE_LABELS,
-      modelKey: prediction.modelKey,
-    },
-    location: { cep3: prediction.cep3, cep4: prediction.cep4 },
+    purpose: "Estimativa estatística de valor, para uso informativo",
+    property: { ...v, patternLabel: patternLabel(v.pattern) },
+    variables: { enabled: v.enabledVariables, disabled, labels: VARIABLE_LABELS, modelKey },
     result: {
-      estimate: Math.round(prediction.value),
-      pricePerM2: Math.round(prediction.value / v.area),
+      estimate: Math.round(interval.value),
+      pricePerM2: Number.isFinite(v.area) && v.area > 0 ? Math.round(interval.value / v.area) : null,
       interval80: [Math.round(interval.low), Math.round(interval.high)],
-      scope: scope.ok ? "Dentro do escopo" : "Fora do escopo",
-      scopeReasons: scope.reasons,
-      confidence,
+      scope: "Dentro do domínio de treino",
       localSupport: stats,
     },
     model: {
       version: model.version,
+      trainedAt: AvmCommon.isoDate(model.trained_at),
       algorithm: model.hyperparameters.algorithm,
       referenceDate: model.reference_date,
-      metrics: prediction.selectedModel.metrics,
+      referenceDateLabel: AvmCommon.monthLabel(model.reference_date),
+      metrics: selected.metrics,
       defaultMetrics: model.metrics,
       hyperparameters: model.hyperparameters,
       libraries: model.libraries,
@@ -351,110 +273,82 @@ function calculate(event) {
       source: model.source,
       pgvSource: model.pgv_source,
     },
-    risks,
+    risks: riskList(v, stats, disabled),
   };
-
   renderResult(latestReport);
+}
+
+function dl(rows) {
+  return rows.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([term, value]) => `<dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
 }
 
 function renderResult(report) {
   const { property: v, result, variables } = report;
-  const enabledLabels = variables.enabled.map((item) => VARIABLE_LABELS[item]);
-  const disabledLabels = variables.disabled.map((item) => VARIABLE_LABELS[item]);
-  const scopeBadge = $("scope-badge");
-  scopeBadge.textContent = result.scope;
-  scopeBadge.className = `status-badge ${result.scope === "Dentro do escopo" ? "ok" : "out"}`;
-
+  const range = `${money.format(result.interval80[0])} a ${money.format(result.interval80[1])}`;
+  setBadge("Dentro do domínio", "ok");
+  $("interval").textContent = range;
   $("estimate").textContent = money.format(result.estimate);
-  $("price-m2").textContent = `${money.format(result.pricePerM2)} por m²`;
-  $("interval").textContent = `${money.format(result.interval80[0])} — ${money.format(result.interval80[1])}`;
-  $("confidence").textContent = `${result.confidence.label} · ${result.confidence.score}/100`;
-  $("support-count").textContent = result.localSupport ? `${number.format(result.localSupport.n)} transações` : "sem suporte";
+  $("price-m2").textContent = result.pricePerM2 ? `· ${money.format(result.pricePerM2)}/m²` : "";
+  $("result-model-key").textContent = variables.enabled.length === 4 ? "completo (4 variáveis)" : variables.enabled.map((item) => VARIABLE_LABELS[item]).join(" + ");
+  $("result-reference").textContent = report.model.referenceDateLabel;
+  $("support-count").textContent = result.localSupport ? `${number.format(result.localSupport.n)} (${result.localSupport.level} ${result.localSupport.key})` : v.cep8.length === 8 ? "nenhuma" : "sem CEP";
   $("local-median").textContent = result.localSupport ? `${money.format(result.localSupport.median_price_m2)}/m²` : "—";
   $("district-support").textContent = result.localSupport
-    ? `${number.format(result.localSupport.n)} transações na região ${result.localSupport.level} ${result.localSupport.key}; CEP é usado apenas como suporte, não no preço.`
-    : "CEP usado para identificação e suporte; ele não integra a equação de preço.";
-  const mainRisk = report.risks.find((risk) => /Fora do escopo|confiabilidade|Modelo reduzido|VM2T/i.test(risk)) || report.risks[0];
-  $("risk-box").innerHTML = `<strong>Leitura de risco.</strong> ${escapeHtml(mainRisk)}`;
+    ? `${number.format(result.localSupport.n)} transações da base na região ${result.localSupport.level} ${result.localSupport.key}. O CEP não entra no preço.`
+    : "O CEP não entra no preço; mostra quantas transações da base ficam na mesma região.";
+  const mainRisk = report.risks.find((risk) => /Modelo reduzido|Poucas transações|VM2T/.test(risk)) || report.risks[0];
+  $("risk-box").innerHTML = `<strong>Atenção.</strong> ${escapeHtml(mainRisk)}`;
 
   $("report-id").textContent = `Identificação ${report.id}`;
-  $("report-estimate").textContent = money.format(result.estimate);
-  $("report-scope").textContent = `${result.scope} · confiança ${result.confidence.label.toLowerCase()}`;
+  $("report-interval").textContent = range;
+  $("report-estimate").textContent = `valor central ${money.format(result.estimate)}`;
   $("report-property").innerHTML = dl([
-    ["Endereço declarado", `${v.address}, ${v.district}, CEP ${v.cep}, São Paulo/SP`],
-    ["Tipologia", "Apartamento residencial"],
-    ["Área privativa / idade", `${areaNumber.format(v.area)} m² / ${v.age} ${v.age === 1 ? "ano" : "anos"}`],
-    ["Padrão IPTU", `${patternLabel(v.pattern)} (código ${v.pattern})`],
+    ["Endereço informado", v.address ? `${v.address}, São Paulo/SP` : null],
+    ["CEP", v.cep8.length === 8 ? v.cep : null],
+    ["Área construída", `${areaNumber.format(v.area)} m²`],
+    ["Ano de conclusão / idade", `${v.yearBuilt} / ${v.age} ${v.age === 1 ? "ano" : "anos"}`],
+    ["Padrão IPTU", `${v.patternLabel} (código ${v.pattern})`],
     ["Valor fiscal PGV", `${money.format(v.fiscal)}/m² de terreno (VM2T informado)`],
-    ["Sistema / recursos", `${v.system} / ${v.funding}`],
-    ["Variáveis ativas", enabledLabels.join(", ")],
-    ["Variáveis desabilitadas", disabledLabels.length ? disabledLabels.join(", ") : "Nenhuma"],
+    ["Variáveis ativas", variables.enabled.map((item) => VARIABLE_LABELS[item]).join(", ")],
+    ["Variáveis desabilitadas", variables.disabled.length ? variables.disabled.map((item) => VARIABLE_LABELS[item]).join(", ") : "Nenhuma"],
     ["Origem do preenchimento", v.documentSource ? `${v.documentSource.fileName} · ${v.documentSource.method}` : "Informação manual"],
   ]);
   $("report-values").innerHTML = dl([
-    ["Valor estimado", money.format(result.estimate)],
-    ["Valor unitário", `${money.format(result.pricePerM2)}/m²`],
-    ["Intervalo de 80%", `${money.format(result.interval80[0])} a ${money.format(result.interval80[1])}`],
-    ["Escopo", result.scope],
-    ["Confiabilidade", `${result.confidence.label} (${result.confidence.score}/100)`],
-    ["Data-base", "Julho de 2026"],
+    ["Faixa de 80% de probabilidade", range],
+    ["Valor central", money.format(result.estimate)],
+    ["Valor unitário", result.pricePerM2 ? `${money.format(result.pricePerM2)}/m²` : null],
+    ["Data-base dos preços", report.model.referenceDateLabel],
+    ["Domínio", result.scope],
   ]);
   $("report-model").innerHTML = dl([
-    ["Versão", model.version],
+    ["Versão", report.model.version],
+    ["Treinado em", report.model.trainedAt],
     ["Modelo selecionado", variables.modelKey],
-    ["Algoritmo", model.hyperparameters.algorithm],
-    ["Amostra tratada", `${number.format(model.eda.rows_model)} compras e vendas`],
-    ["Suporte local", result.localSupport ? `${number.format(result.localSupport.n)} transações (${result.localSupport.level}; não altera o preço)` : "indisponível"],
-    ["Erro mediano deste modelo", `${decimal.format(report.model.metrics.med_ape_pct)}%`],
-    ["Impressão digital", report.id.split("-").at(-1)],
+    ["Algoritmo", report.model.algorithm],
+    ["Amostra de treino", `${number.format(report.model.eda.rows_model)} compras e vendas`],
+    ["Erro percentual mediano deste modelo", `${decimal.format(report.model.metrics.med_ape_pct)}%`],
+    ["Cobertura observada da faixa de 80%", `${decimal.format(report.model.metrics.interval_80_coverage_pct)}%`],
+    ["Transações na região do CEP", result.localSupport ? `${number.format(result.localSupport.n)} (${result.localSupport.level}; não altera o preço)` : null],
   ]);
   $("report-risks").innerHTML = report.risks.map((risk) => `<li>${escapeHtml(risk)}</li>`).join("");
-  $("report-version").textContent = model.version;
   $("report-time").textContent = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(report.issuedAt));
-
-  $("model-loading").hidden = true;
-  $("result-content").hidden = false;
-}
-
-function renderBars(container, items) {
-  const max = Math.max(...items.map((item) => item.count));
-  $(container).innerHTML = items.map((item) => `
-    <div class="bar-item" title="${escapeHtml(item.label)}: ${number.format(item.count)} transações">
-      <b>${number.format(item.count)}</b>
-      <i style="height:${Math.max(3, (item.count / max) * 170)}px"></i>
-      <span>${escapeHtml(item.label)}</span>
-    </div>`).join("");
-}
-
-function renderMethodology() {
-  $("eda-rows").textContent = number.format(model.eda.rows_model);
-  $("metric-r2").textContent = decimal.format(model.metrics.r2_log);
-  $("metric-mdape").textContent = `${decimal.format(model.metrics.med_ape_pct)}%`;
-  $("v-r2").textContent = decimal.format(model.metrics.r2_log);
-  $("v-mape").textContent = `${decimal.format(model.metrics.mape_pct)}%`;
-  $("v-mdape").textContent = `${decimal.format(model.metrics.med_ape_pct)}%`;
-  $("v-rmse").textContent = money.format(model.metrics.rmse_brl);
-  $("v-coverage").textContent = `${decimal.format(model.metrics.interval_80_coverage_pct)}%`;
-  $("v-test").textContent = number.format(model.metrics.test_rows);
-  renderBars("area-chart", model.eda.area_hist);
-  renderBars("price-chart", model.eda.price_m2_hist);
-  renderBars("fiscal-chart", model.eda.fiscal_hist);
-
-  const maxImportance = Math.max(...model.feature_effects.map((item) => item.importance));
-  $("importance-chart").innerHTML = model.feature_effects.map((item) => `
-    <div class="importance-item" title="${escapeHtml(item.feature)}">
-      <span>${escapeHtml(item.feature)}</span>
-      <div class="importance-track"><i style="width:${(item.importance / maxImportance) * 100}%"></i></div>
-      <b>${decimal.format(item.importance * 100)}%</b>
-    </div>`).join("");
-
-  const entries = [["Python", model.libraries.python], ["pandas", model.libraries.pandas], ["NumPy", model.libraries.numpy], ["scikit-learn", model.libraries.scikit_learn]];
-  $("libraries").innerHTML = entries.map(([name, version]) => `<div><small>${name}</small><strong>v${escapeHtml(version)}</strong></div>`).join("");
+  showPanel("result");
 }
 
 function populatePatterns() {
-  $("pattern").innerHTML = model.patterns.map((item) => `<option value="${item.code}">${item.label} · ${number.format(item.n)} transações</option>`).join("");
-  $("pattern").value = model.patterns.some((item) => item.code === 22) ? "22" : String(model.patterns[0].code);
+  $("pattern").innerHTML = model.patterns.map((item) => `<option value="${item.code}">${escapeHtml(item.label)} · ${number.format(item.n)} transações</option>`).join("");
+  $("pattern").value = model.patterns.some((item) => String(item.code) === EXAMPLE.pattern) ? EXAMPLE.pattern : String(model.patterns[0].code);
+}
+
+// Limites vêm do model.json (applicability): nada de número fixo no HTML.
+function applyLimitsToForm() {
+  const a = model.applicability;
+  $("area").min = a.area_m2[0]; $("area").max = a.area_m2[1];
+  $("year-built").min = a.year_built[0]; $("year-built").max = a.year_built[1];
+  $("fiscal").min = a.fiscal_vm2t_brl[0]; $("fiscal").max = a.fiscal_vm2t_brl[1];
+  $("scope-area").textContent = `${a.area_m2[0]}–${a.area_m2[1]} m²`;
+  $("scope-year").textContent = `construção ${a.year_built[0]}–${a.year_built[1]}`;
+  $("scope-price").textContent = `${money.format(a.price_brl[0])} a ${money.format(a.price_brl[1])}`;
 }
 
 function updateVariableControls(changedInput) {
@@ -472,17 +366,14 @@ function updateVariableControls(changedInput) {
 
 function resetExample() {
   documentReadState = null;
-  lastGeocodedAddress = "";
-  $("address").value = "Rua Vergueiro, 2.650";
-  $("district").value = "Vila Mariana";
-  $("cep").value = "04109-002";
-  $("area").value = 78;
-  $("age").value = 8;
-  $("pattern").value = "22";
-  $("fiscal").value = 6500;
-  $("system").value = "SFH";
-  $("funding").value = "SBPE";
-  $("address-lookup-status").textContent = "Ao preencher ou alterar o endereço, o aplicativo consulta automaticamente CEP e bairro.";
+  $("address").value = EXAMPLE.address;
+  $("cep").value = EXAMPLE.cep;
+  $("area").value = EXAMPLE.area;
+  $("year-built").value = EXAMPLE.yearBuilt;
+  $("pattern").value = EXAMPLE.pattern;
+  $("fiscal").value = EXAMPLE.fiscal;
+  $("declared").checked = true;
+  $("address-lookup-status").textContent = "Só sai do seu navegador se você clicar em Localizar CEP: o endereço é então enviado ao OpenStreetMap (Nominatim) para preencher o CEP.";
   setReaderStatus("", "Nenhum documento selecionado.");
   document.querySelectorAll("[data-variable]").forEach((input) => { input.checked = true; });
   updateVariableControls();
@@ -510,12 +401,10 @@ function debounce(fn, delay) {
 }
 
 async function init() {
-  document.querySelectorAll(".tab").forEach((button) => button.addEventListener("click", () => setTab(button.dataset.tab)));
   $("valuation-form").addEventListener("submit", calculate);
   $("valuation-form").addEventListener("input", debounce(calculate, 180));
   $("matricula-file").addEventListener("change", readMatricula);
-  $("lookup-address").addEventListener("click", () => locateAddress(true));
-  $("address").addEventListener("change", () => locateAddress());
+  $("lookup-address").addEventListener("click", locateAddress);
   $("cep").addEventListener("blur", () => { $("cep").value = formatCep($("cep").value); });
   document.querySelectorAll("[data-variable]").forEach((input) => {
     input.addEventListener("change", () => {
@@ -528,18 +417,16 @@ async function init() {
   $("download-xlsx").addEventListener("click", downloadXlsx);
 
   try {
-    const response = await fetch(document.getElementById("model-url").href); // nome com fingerprint, injetado pelo build
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    model = await response.json();
-    $("header-version").textContent = model.version;
+    model = await AvmCommon.loadModel();
+    AvmCommon.fillVersion(model);
     populatePatterns();
+    applyLimitsToForm();
     updateVariableControls();
-    renderMethodology();
-    calculate();
+    resetExample();
   } catch (error) {
-    $("model-loading").innerHTML = `<strong>Não foi possível carregar o modelo.</strong><span style="animation:none;border:0;width:auto;height:auto">${escapeHtml(error.message)}</span>`;
-    $("scope-badge").textContent = "Indisponível";
-    $("scope-badge").className = "status-badge out";
+    $("model-loading").textContent = `Não foi possível carregar o modelo (${error.message}). Verifique a conexão e recarregue a página.`;
+    $("model-loading").classList.add("is-error");
+    setBadge("Indisponível", "out");
   }
 }
 

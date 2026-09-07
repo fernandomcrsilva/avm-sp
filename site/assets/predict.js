@@ -49,5 +49,40 @@
     };
   }
 
-  root.AvmPredict = { modelKey, features, logPrice, interval };
+  // Domínio de treino (model.applicability). Devolve motivos de recusa; lista vazia = dentro do domínio.
+  // Só verifica variáveis habilitadas: uma variável desabilitada não entra no modelo escolhido.
+  // O preço estimado é verificado à parte em priceReason(), porque só existe depois do cálculo.
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const num = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+  const between = (x, [lo, hi]) => Number.isFinite(x) && x >= lo && x <= hi;
+
+  function limitReasons(model, input) {
+    const a = model.applicability;
+    const enabled = input.enabledVariables || [];
+    const reasons = [];
+    if (enabled.includes("area") && !between(input.area, a.area_m2)) {
+      reasons.push(`área de ${num.format(input.area)} m² fora da faixa de treino de ${a.area_m2[0]} a ${a.area_m2[1]} m²`);
+    }
+    if (enabled.includes("age") && !between(input.yearBuilt, a.year_built)) {
+      reasons.push(`ano de conclusão ${input.yearBuilt} fora da faixa de treino de ${a.year_built[0]} a ${a.year_built[1]}`);
+    }
+    if (enabled.includes("pattern") && !a.pattern_codes.includes(Number(input.pattern))) {
+      reasons.push(`padrão IPTU código ${input.pattern} sem transações na base de treino`);
+    }
+    if (enabled.includes("fiscal") && !between(input.fiscal, a.fiscal_vm2t_brl)) {
+      reasons.push(`valor fiscal (VM2T) de ${brl.format(input.fiscal)}/m² fora da faixa observada de ${brl.format(a.fiscal_vm2t_brl[0])} a ${brl.format(a.fiscal_vm2t_brl[1])}/m²`);
+    }
+    if (!input.declared) {
+      reasons.push(`sem a confirmação de que é apartamento residencial (uso IPTU ${a.use_iptu}), com inscrição predial ativa, em compra e venda`);
+    }
+    return reasons;
+  }
+
+  function priceReason(model, price) {
+    const [lo, hi] = model.applicability.price_brl;
+    if (between(price, [lo, hi])) return null;
+    return `valor central estimado de ${brl.format(price)} fora da faixa de preços de treino de ${brl.format(lo)} a ${brl.format(hi)}`;
+  }
+
+  root.AvmPredict = { modelKey, features, logPrice, interval, limitReasons, priceReason };
 })(typeof globalThis !== "undefined" ? globalThis : this);
