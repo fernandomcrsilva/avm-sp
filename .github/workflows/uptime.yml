@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
+permissions: {} # só curl para fora; nenhum acesso ao repositório
 jobs:
   probe:
     runs-on: ubuntu-latest

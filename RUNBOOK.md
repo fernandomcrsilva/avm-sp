@@ -15,19 +15,21 @@ npx wrangler versions list                      # versões enviadas (com tag/men
 
 Caminho normal: **pull request → preview → merge → tag**. Nada sai da máquina local para produção.
 
-1. Branch + PR para `main`. O CI (`.github/workflows/ci.yml`, job `check`) roda lint, validador do `model.json`,
-   paridade Python↔JS, limites, build e orçamento de tamanho. O job `preview` publica uma versão com
+1. Branch + PR para `main`. O CI (`.github/workflows/ci.yml`, job `check`) roda build, lint, validador do `model.json`,
+   paridade Python↔JS, limites e orçamento de tamanho. O job `preview` publica uma versão com
    `wrangler versions upload` e comenta a URL `https://<id>-avm-sp.heybrain.workers.dev` no PR. Produção não muda.
 2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push).
-3. Produção: crie e envie uma tag `vX.Y.Z` (ou dispare o workflow manualmente em Actions → ci → Run workflow).
-   O job `deploy` faz `versions upload --tag vX.Y.Z` e `versions deploy <id>@100%`, espera a propagação (~1 min)
+3. Produção: crie e envie uma tag `vX.Y.Z` (ou dispare o workflow manualmente em Actions → ci → Run workflow, só em `main`).
+   O job `deploy` recusa tag fora do formato `vX.Y.Z` e commit que não esteja em `main`; depois faz
+   `versions upload --tag vX.Y.Z` e `versions deploy <id>@100%`, espera a propagação (~1 min)
    e confere que `/version.json` traz o SHA do commit.
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-Segredo necessário no repositório: `CLOUDFLARE_API_TOKEN` (Settings → Secrets and variables → Actions).
+Segredo necessário: `CLOUDFLARE_API_TOKEN` (Settings → Environments → production → Environment secrets; até a migração,
+Settings → Secrets and variables → Actions). No CI ele só existe no `env:` dos passos do wrangler; o build e o `npm ci --ignore-scripts` rodam sem ele.
 Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit** (+ Account Settings → Read), restrito à conta HeyBrain!,
 validade de 1 ano: **rotacionar até 2027-09-07** (criar novo, `gh secret set CLOUDFLARE_API_TOKEN`, revogar o antigo).
 Nunca commitar o token; nunca colar em log.
@@ -89,10 +91,10 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
 ## Desenvolvimento local
 
 ```bash
-npm ci && npm run check          # tudo que o CI roda
+npm ci && npm run check          # tudo que o CI roda (o build vem primeiro: o wrangler não constrói mais o dist/)
 npx wrangler dev                 # http://localhost:8787 com _headers, 404 e /api/erro reais
 ```
-Não rode `npm run build` com o `wrangler dev` aberto: o `dist/` é apagado e recriado e o servidor passa a responder 500.
+Não rode `npm run build` (nem `check`) com o `wrangler dev` aberto: o `dist/` é apagado e recriado e o servidor passa a responder 500.
 Reinicie o `wrangler dev`. Para servir um arquivo extra em teste (ex.: PDF de matrícula), copie `dist/` para fora e use
 `npx wrangler dev --assets <cópia> --port 8788`.
 

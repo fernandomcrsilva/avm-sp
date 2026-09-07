@@ -5,7 +5,7 @@
   "main": "src/worker.js", // só POST /api/erro (avisos técnicos anônimos → Workers Logs); o resto é asset
   "compatibility_date": "2026-09-07",
   "account_id": "ee92a19319ea452a3e1b995058bb5a33",
-  "build": { "command": "npm run build" },
+  // Sem build.command: o dist/ vem de `npm run build`, rodado antes (CI: passo sem token; local: npm run check).
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

@@ -1,0 +1,13 @@
+# Avisos e PRs semanais de atualização (auditoria 2026-09-07, VULN-014). Os alertas de vulnerabilidade
+# (Dependabot alerts) são ligados em Settings → Code security, pelo dono do repositório.
+version: 2
+updates:
+  - package-ecosystem: npm # wrangler
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: pip # requirements.in (o requirements.lock com hashes é regerado à mão; ver RUNBOOK)
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions # SHAs fixados em .github/workflows/*.yml
+    directory: /
+    schedule: { interval: weekly }

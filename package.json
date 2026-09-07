@@ -7,7 +7,7 @@
     "validate": "python3 scripts/validate_model.py",
     "test": "node --test tests/*.test.mjs",
     "build": "node build.mjs",
-    "check": "npm run lint && npm run validate && python3 -m unittest tests.test_validate_model && npm test && npm run build"
+    "check": "npm run build && npm run lint && npm run validate && python3 -m unittest tests.test_validate_model && npm test"
   },
   "engines": {
     "node": ">=22"
