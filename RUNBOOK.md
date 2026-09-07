@@ -1,0 +1,100 @@
+# RUNBOOK — AVM SP (avm.heybrain.uk)
+
+Site estático em Cloudflare Workers Static Assets + um Worker mínimo (`src/worker.js`, só `POST /api/erro`).
+Repositório: https://github.com/fernandomcrsilva/avm-sp · Worker: `avm-sp` (conta HeyBrain!) · Produção: https://avm.heybrain.uk · Preview: `*.avm-sp.heybrain.workers.dev` (noindex).
+
+## O que está no ar
+
+```bash
+curl -s https://avm.heybrain.uk/version.json   # git_sha, built_at, model_version, model_trained_at
+npx wrangler deployments list                   # versão ativa e histórico
+npx wrangler versions list                      # versões enviadas (com tag/mensagem)
+```
+
+## Publicar
+
+Caminho normal: **pull request → preview → merge → tag**. Nada sai da máquina local para produção.
+
+1. Branch + PR para `main`. O CI (`.github/workflows/ci.yml`, job `check`) roda lint, validador do `model.json`,
+   paridade Python↔JS, limites, build e orçamento de tamanho. O job `preview` publica uma versão com
+   `wrangler versions upload` e comenta a URL `https://<id>-avm-sp.heybrain.workers.dev` no PR. Produção não muda.
+2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push).
+3. Produção: crie e envie uma tag `vX.Y.Z` (ou dispare o workflow manualmente em Actions → ci → Run workflow).
+   O job `deploy` faz `versions upload --tag vX.Y.Z` e `versions deploy <id>@100%`, espera a propagação (~1 min)
+   e confere que `/version.json` traz o SHA do commit.
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Segredo necessário no repositório: `CLOUDFLARE_API_TOKEN` (Settings → Secrets and variables → Actions).
+Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit**, restrito à conta HeyBrain!.
+Nunca commitar o token; nunca colar em log.
+
+Mudanças em **triggers** (rota, Custom Domain, cron) não entram por `versions deploy`: rode `npx wrangler triggers deploy`
+(ou `npx wrangler deploy`) uma vez, localmente, com autorização explícita. Foi assim que `avm.heybrain.uk` foi criado.
+
+## Reverter
+
+Toda versão enviada fica guardada. Reverter é apontar 100% do tráfego para uma versão anterior:
+
+```bash
+npx wrangler versions list                      # ache o id da última versão boa (tag/mensagem ajudam)
+npx wrangler versions deploy <id-anterior>@100% -y
+curl -s https://avm.heybrain.uk/version.json    # confirme git_sha/model_version (até ~1 min para propagar)
+```
+
+Atalho equivalente: `npx wrangler rollback` (interativo; escolhe uma implantação anterior). Depois de reverter,
+corrija em PR e publique por tag normalmente. Não há banco nem estado: reverter o Worker reverte tudo.
+
+Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, depois ajuste os percentuais.
+
+## Atualizar o modelo (nova base de ITBI ou nova PGV)
+
+1. Baixe a planilha oficial e o PDF dos anexos da PGV para `data/raw/` (pasta fora do git). URLs oficiais em
+   `data/sources.lock.json`. Se a Prefeitura publicou arquivo novo, a URL muda (tem data no caminho).
+2. Atualize `data/sources.lock.json`: `download_url`, `published` e o novo `sha256` (`sha256sum data/raw/<arquivo>`).
+   O treino **recusa** rodar com hash divergente; isso é proposital.
+3. Se a janela de datas, o ano-base ou os limites mudarem, ajuste `LIMITS`, `BASE_YEAR` e `REFERENCE_DATE` em
+   `train_model.py`. A `version` do modelo também está lá.
+4. Treine no ambiente fixado (`requirements.lock`, Python 3.12):
+   ```bash
+   uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.lock
+   .venv/bin/python train_model.py --trained-at AAAA-MM-DD
+   ```
+   Saída: `site/assets/model.json` e `tests/parity_fixture.json` (referência scikit-learn).
+5. `npm run check` (validador com faixas sãs, paridade 1e-9, build). Se o validador reprovar métricas, não publique.
+6. Confira `/metodologia` no preview: períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
+7. PR → preview → merge → tag. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.
+
+## Configurações da zona que importam (heybrain.uk)
+
+- SSL/TLS **Full (strict)**, Always Use HTTPS **on**, TLS mínimo **1.2**, HSTS **on** (180 dias, sem preload).
+- **Bot Fight Mode desligado** e JavaScript Detections desligado. Se religar, a Cloudflare injeta script inline
+  bloqueado pela CSP: erro de console e Lighthouse Boas Práticas cai para 93. Block AI Bots continua ligado.
+- Rate limit `freio-de-custo-api`: bloqueia `/api/*` acima de 100 req/10 s por IP (vale para `/api/erro`).
+- `_headers` só vale para respostas de assets; as do Worker (`/api/erro`) trazem cabeçalhos no código.
+
+## Observabilidade
+
+- Workers Logs (7 dias): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
+  `{"event":"front_error","kind":...}` com `kind` em `model_load_failed | js_error | unhandled_rejection | ocr_failed | refused`.
+  Nunca contêm dados do imóvel; em `refused` só o código do limite.
+- Uptime: `.github/workflows/uptime.yml` a cada 30 min (falha = e-mail do GitHub). Rodar à mão: Actions → uptime → Run workflow.
+- Lighthouse local: `CHROME_PATH=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome npx lighthouse@12 https://avm.heybrain.uk/ --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate`.
+
+## Desenvolvimento local
+
+```bash
+npm ci && npm run check          # tudo que o CI roda
+npx wrangler dev                 # http://localhost:8787 com _headers, 404 e /api/erro reais
+```
+Não rode `npm run build` com o `wrangler dev` aberto: o `dist/` é apagado e recriado e o servidor passa a responder 500.
+Reinicie o `wrangler dev`. Para servir um arquivo extra em teste (ex.: PDF de matrícula), copie `dist/` para fora e use
+`npx wrangler dev --assets <cópia> --port 8788`.
+
+## Domínio
+
+`heybrain.uk` é registrado na Cloudflare (Registrar) com renovação automática; expira em 2027-08-29. Em 2026-08 a
+renovação falhou por pagamento e o domínio ficou 10 dias vencido sem ninguém notar. Confira o método de pagamento
+antes de agosto e o e-mail de aviso da Cloudflare.
