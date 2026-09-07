@@ -121,6 +121,7 @@ function render(model) {
     return div;
   }));
   text("m-reference", AvmCommon.monthLabel(model.reference_date));
+  text("m-model-sha", AvmCommon.modelSha256());
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

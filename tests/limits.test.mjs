@@ -27,6 +27,15 @@ test("cada limite gera um motivo", () => {
   assert.deepEqual(AvmPredict.limitReasons(model, { ...ok, area: 999, declared: false }).map((r) => r.code), ["area", "declared"]);
 });
 
+test("preço por m² só é verificado com a área habilitada", () => {
+  const a = model.applicability;
+  assert.equal(AvmPredict.priceReason(model, 500_000, 78), null);
+  assert.equal(AvmPredict.priceReason(model, a.price_brl[1], a.area_m2[0]).code, "price_m2"); // teto de preço / área mínima > teto por m²
+  assert.equal(AvmPredict.priceReason(model, a.price_brl[0], a.area_m2[1]).code, "price_m2"); // piso de preço / área máxima < piso por m²
+  assert.equal(AvmPredict.priceReason(model, a.price_brl[0], NaN), null); // área desabilitada: não verifica
+  assert.equal(AvmPredict.priceReason(model, a.price_brl[1] * 2, 78).code, "price"); // o preço central vem primeiro
+});
+
 test("variável desabilitada não é verificada; área vazia com área desabilitada passa", () => {
   const reasons = AvmPredict.limitReasons(model, { ...ok, area: NaN, enabledVariables: ["age", "pattern", "fiscal"] });
   assert.deepEqual(reasons, []);
