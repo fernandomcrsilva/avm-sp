@@ -119,7 +119,7 @@ async function readMatricula(event) {
     calculate();
   } catch (error) {
     setReaderStatus("error", error.message);
-    AvmCommon.report("ocr_failed", { message: error.message }); // mensagem do leitor, sem conteúdo do documento
+    AvmCommon.report("ocr_failed", { message: error.name }); // só o tipo do erro: mensagens de biblioteca podem citar o documento
   } finally {
     input.disabled = false;
     input.value = "";
