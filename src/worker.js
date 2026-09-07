@@ -6,7 +6,6 @@ const MAX_BODY = 2048;
 const KINDS = new Set(["model_load_failed", "js_error", "unhandled_rejection", "ocr_failed", "refused"]);
 const TEXT = (value, max) => (typeof value === "string" ? value.slice(0, max) : undefined);
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "cache-control": "no-store",

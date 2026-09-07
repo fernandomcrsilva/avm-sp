@@ -6,13 +6,10 @@
   const MAX_OCR_PAGES = 4;
   const NUMBER_PATTERN = "(?:\\d{1,4}(?:\\.\\d{3})*(?:,\\d+)?|\\d{1,4}(?:[.,]\\d+)?)";
   const AREA_UNIT = "(?:m\\s*[²2]|metros?\\s+quadrados?)";
-  const SCRIPT_BASE_URL = typeof document === "undefined" ? null : new URL(
-    ".",
-    document.currentScript?.src || new URL("assets/matricula-reader.js", document.baseURI).href,
-  );
+  const SCRIPT_BASE_URL = new URL(".", document.currentScript.src); // script clássico: sempre definido
 
   function resolveAssetUrl(fileName) {
-    return SCRIPT_BASE_URL ? new URL(fileName, SCRIPT_BASE_URL).href : fileName;
+    return new URL(fileName, SCRIPT_BASE_URL).href;
   }
 
   function cleanText(value) {

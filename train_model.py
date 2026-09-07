@@ -39,7 +39,6 @@ DEFAULT_PARITY_INPUTS = ROOT / "tests" / "parity_inputs.json"
 DEFAULT_PARITY_FIXTURE = ROOT / "tests" / "parity_fixture.json"
 sys.path.insert(0, str(ROOT / "scripts"))
 from parity_fixture import write_fixture  # noqa: E402  (mesmo formato do gerador "formula")
-REFERENCE_DATE = pd.Timestamp("2026-07-01")
 ALPHA = 1.0
 CONFORMAL_LEVEL = 0.80  # cobertura nominal da faixa; exportada em hyperparameters.interval_nominal_coverage_pct
 BASE_YEAR = 2026  # ano-base da idade (idade = BASE_YEAR - ano de conclusão ACC)
@@ -187,9 +186,9 @@ def clean_data(raw: pd.DataFrame, pgv: pd.DataFrame) -> tuple[pd.DataFrame, dict
     )
     selected["date"] = pd.to_datetime(selected["Data de Transação"], errors="coerce")
     selected["year_built"] = pd.to_numeric(selected["ACC (IPTU)"], errors="coerce")
-    selected["age"] = (BASE_YEAR - selected["year_built"]).clip(0, BASE_YEAR - LIMITS["year_built"][0])
+    selected["age"] = BASE_YEAR - selected["year_built"]  # já em [0, 20] pelo filtro de year_built
     selected["pattern"] = (
-        pd.to_numeric(selected["Padrão (IPTU)"], errors="coerce").fillna(22).astype(int).astype(str)
+        pd.to_numeric(selected["Padrão (IPTU)"], errors="coerce").astype(int).astype(str)  # sem NaN: filtrado acima
     )
     selected["price_m2"] = selected["price"] / selected["area"]
     selected = selected[selected["price_m2"].between(*LIMITS["price_m2_brl"])].copy()

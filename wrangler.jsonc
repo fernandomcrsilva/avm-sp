@@ -10,14 +10,11 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"],
-    "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
   // Workers Logs (7 dias) com logs de invocação: quem chamou /api/erro e o que o front reportou.
   "observability": { "enabled": true, "logs": { "invocation_logs": true, "head_sampling_rate": 1 } },
   // Produção: Custom Domain (cria o DNS e emite o certificado no deploy). Subdomínio, sem www.
   "routes": [{ "pattern": "avm.heybrain.uk", "custom_domain": true }],
-  // avm-sp.heybrain.workers.dev fica como preview (noindex via _headers).
-  "workers_dev": true,
-  "preview_urls": true
+  // avm-sp.heybrain.workers.dev e os aliases de preview ficam ligados (default); noindex via _headers.
 }

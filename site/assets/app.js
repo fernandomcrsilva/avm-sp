@@ -24,23 +24,11 @@ function formatCep(value) {
 }
 
 function numericField(id) {
-  const input = $(id);
-  if (input.value.trim() === "") return NaN;
-  if (Number.isFinite(input.valueAsNumber)) return input.valueAsNumber;
-  return Number(input.value.trim().replace(",", "."));
+  return $(id).valueAsNumber; // NaN quando vazio ou inválido
 }
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
-}
-
-function hashText(text) {
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36).toUpperCase().padStart(7, "0").slice(0, 7);
 }
 
 function setReaderStatus(type, message) {
@@ -201,15 +189,13 @@ function showPanel(which) {
   $("result-content").hidden = which !== "result";
 }
 
-// Só a categoria do limite violado vai para o aviso técnico; os valores ficam no navegador.
-const REASON_CODES = [[/^área/, "area"], [/^ano de conclusão/, "year"], [/^padrão/, "pattern"], [/^valor fiscal/, "fiscal"], [/^sem a confirmação/, "declared"], [/^valor central/, "price"], [/^combinação/, "model"]];
 function refuse(reasons) {
   latestReport = null;
   setBadge("Recusada", "out");
-  AvmCommon.report("refused", { codes: reasons.map((r) => (REASON_CODES.find(([re]) => re.test(r)) || [null, "other"])[1]) });
+  AvmCommon.report("refused", { codes: reasons.map((r) => r.code) }); // só o código do limite, nunca o valor
   $("refusal-reasons").replaceChildren(...reasons.map((reason) => {
     const li = document.createElement("li");
-    li.textContent = reason;
+    li.textContent = reason.text;
     return li;
   }));
   showPanel("refusal");
@@ -239,7 +225,7 @@ function calculate(event) {
 
   const modelKey = AvmPredict.modelKey(model, v.enabledVariables);
   const selected = model.models[modelKey];
-  if (!selected) return refuse(["combinação de variáveis sem modelo treinado"]);
+  if (!selected) return refuse([{ code: "model", text: "combinação de variáveis sem modelo treinado" }]);
   const logValue = AvmPredict.logPrice(model, modelKey, v);
   const interval = AvmPredict.interval(logValue, selected.conformal_q80_log);
   const priceReason = AvmPredict.priceReason(model, interval.value);
@@ -248,7 +234,7 @@ function calculate(event) {
   const stats = localSupport(v.cep8);
   const disabled = model.variable_order.filter((variable) => !v.enabledVariables.includes(variable));
   const timestamp = new Date();
-  const fingerprint = hashText(JSON.stringify({ ...v, documentSource: null, version: model.version, modelKey }));
+  const fingerprint = crypto.randomUUID().slice(0, 8).toUpperCase();
 
   latestReport = {
     id: `AVM-SP-${timestamp.toISOString().slice(0, 10).replaceAll("-", "")}-${fingerprint}`,
