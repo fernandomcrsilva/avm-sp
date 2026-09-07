@@ -34,6 +34,14 @@
 /asset-manifest.json
   Cache-Control: no-store
 
+# Imagens e manifesto na raiz não têm fingerprint (a URL do og:image precisa ser estável): um dia de cache.
+/*.png
+  Cache-Control: public, max-age=86400
+/favicon.svg
+  Cache-Control: public, max-age=86400
+/site.webmanifest
+  Cache-Control: public, max-age=86400
+
 # URLs *.workers.dev (avm-sp.heybrain.workers.dev e os aliases de preview <id>-avm-sp.heybrain.workers.dev)
 # não competem com avm.heybrain.uk nos buscadores. Padrão com placeholders, conforme a documentação.
 https://:version.:subdomain.workers.dev/*
