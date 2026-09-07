@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "for f in site/assets/*.js src/*.js build.mjs tests/*.mjs; do node --check \"$f\" || exit 1; done && python3 -m py_compile train_model.py scripts/*.py tests/*.py && npx wrangler deploy --dry-run --outdir .wrangler/dry-run >/dev/null && echo lint ok",
     "validate": "python3 scripts/validate_model.py",
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.mjs",
     "build": "node build.mjs",
     "check": "npm run lint && npm run validate && python3 -m unittest tests.test_validate_model && npm test && npm run build"
   },
