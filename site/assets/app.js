@@ -12,7 +12,8 @@ const number = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
 const VARIABLE_LABELS = { area: "Área construída", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
-const EXAMPLE = { address: "Rua Vergueiro, 2650", cep: "04109-002", area: 78, yearBuilt: 2018, pattern: "22", fiscal: 6500 };
+const EXAMPLE = { address: "Rua Exemplo, 100", cep: "04109-002", area: 78, yearBuilt: 2018, pattern: "22", fiscal: 6500 }; // endereço fictício; o CEP só mostra a região
+let calcSeq = 0; // a identificação é assíncrona (hash): só a última estimativa iniciada pode renderizar
 
 function cepDigits(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 8);
@@ -76,6 +77,7 @@ async function locateAddress() {
       });
       if (!response.ok) throw new Error(`serviço respondeu ${response.status}`);
       const results = await response.json();
+      if (!Array.isArray(results)) throw new Error("resposta inesperada do serviço");
       const candidate = results.find((item) => item.address?.postcode) || results[0];
       if (!candidate) throw new Error("endereço não localizado em São Paulo");
       const details = candidate.address || {};
@@ -201,9 +203,10 @@ function refuse(reasons) {
   showPanel("refusal");
 }
 
-function calculate(event) {
+async function calculate(event) {
   if (event) event.preventDefault();
   if (!model) return;
+  const seq = ++calcSeq;
   const v = getInputs();
   $("cep").value = v.cep;
   $("age-note").textContent = Number.isFinite(v.age)
@@ -219,6 +222,13 @@ function calculate(event) {
     showPanel("loading");
     return;
   }
+  if (!v.declared) { // sem a confirmação não há estimativa nem aviso de recusa: é um pré-requisito, não um limite (VULN-010)
+    latestReport = null;
+    setBadge("Aguardando confirmação", "pending");
+    $("model-loading").textContent = "Confirme, abaixo do formulário, que é um apartamento residencial em compra e venda para estimar.";
+    showPanel("loading");
+    return;
+  }
 
   const reasons = AvmPredict.limitReasons(model, v); // recusa ANTES de calcular
   if (reasons.length) return refuse(reasons);
@@ -228,13 +238,17 @@ function calculate(event) {
   if (!selected) return refuse([{ code: "model", text: "combinação de variáveis sem modelo treinado" }]);
   const logValue = AvmPredict.logPrice(model, modelKey, v);
   const interval = AvmPredict.interval(logValue, selected.conformal_q80_log);
-  const priceReason = AvmPredict.priceReason(model, interval.value);
+  const areaUsed = v.enabledVariables.includes("area");
+  const priceReason = AvmPredict.priceReason(model, interval.value, areaUsed ? v.area : NaN);
   if (priceReason) return refuse([priceReason]);
 
   const stats = localSupport(v.cep8);
   const disabled = model.variable_order.filter((variable) => !v.enabledVariables.includes(variable));
   const timestamp = new Date();
-  const fingerprint = crypto.randomUUID().slice(0, 8).toUpperCase();
+  // Identificação reprodutível: mesmas entradas + mesma versão do modelo = mesma identificação.
+  const digest = await AvmCommon.sha256Hex(JSON.stringify([v.address, v.cep8, v.area, v.yearBuilt, v.pattern, v.fiscal, v.enabledVariables, model.version]));
+  if (seq !== calcSeq) return; // outra estimativa começou enquanto o hash era calculado
+  const fingerprint = digest.slice(0, 12).toUpperCase();
 
   latestReport = {
     id: `AVM-SP-${timestamp.toISOString().slice(0, 10).replaceAll("-", "")}-${fingerprint}`,
@@ -244,9 +258,9 @@ function calculate(event) {
     variables: { enabled: v.enabledVariables, disabled, labels: VARIABLE_LABELS, modelKey },
     result: {
       estimate: Math.round(interval.value),
-      pricePerM2: Number.isFinite(v.area) && v.area > 0 ? Math.round(interval.value / v.area) : null,
+      pricePerM2: areaUsed && v.area > 0 ? Math.round(interval.value / v.area) : null, // só com a área no modelo (VULN-006)
       interval80: [Math.round(interval.low), Math.round(interval.high)],
-      scope: "Dentro do domínio de treino",
+      scope: disabled.length ? `Dentro do domínio de treino do modelo reduzido (sem ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")})` : "Dentro do domínio de treino",
       localSupport: stats,
     },
     model: {
@@ -293,13 +307,14 @@ function renderResult(report) {
   $("report-id").textContent = `Identificação ${report.id}`;
   $("report-interval").textContent = range;
   $("report-estimate").textContent = `valor central ${money.format(result.estimate)}`;
+  const used = (key, value) => (variables.disabled.includes(key) ? "não usada nesta estimativa (variável desabilitada)" : value); // VULN-006
   $("report-property").innerHTML = dl([
     ["Endereço informado", v.address ? `${v.address}, São Paulo/SP` : null],
     ["CEP", v.cep8.length === 8 ? v.cep : null],
-    ["Área construída", `${areaNumber.format(v.area)} m²`],
-    ["Ano de conclusão / idade", `${v.yearBuilt} / ${v.age} ${v.age === 1 ? "ano" : "anos"}`],
-    ["Padrão IPTU", `${v.patternLabel} (código ${v.pattern})`],
-    ["Valor fiscal PGV", `${money.format(v.fiscal)}/m² de terreno (VM2T informado)`],
+    ["Área construída", used("area", `${areaNumber.format(v.area)} m²`)],
+    ["Ano de conclusão / idade", used("age", `${v.yearBuilt} / ${v.age} ${v.age === 1 ? "ano" : "anos"}`)],
+    ["Padrão IPTU", used("pattern", `${v.patternLabel} (código ${v.pattern})`)],
+    ["Valor fiscal PGV", used("fiscal", `${money.format(v.fiscal)}/m² de terreno (VM2T informado)`)],
     ["Variáveis ativas", variables.enabled.map((item) => VARIABLE_LABELS[item]).join(", ")],
     ["Variáveis desabilitadas", variables.disabled.length ? variables.disabled.map((item) => VARIABLE_LABELS[item]).join(", ") : "Nenhuma"],
     ["Origem do preenchimento", v.documentSource ? `${v.documentSource.fileName} · ${v.documentSource.method}` : "Informação manual"],
@@ -328,7 +343,7 @@ function renderResult(report) {
 }
 
 function populatePatterns() {
-  $("pattern").innerHTML = model.patterns.map((item) => `<option value="${item.code}">${escapeHtml(item.label)} · ${number.format(item.n)} transações</option>`).join("");
+  $("pattern").replaceChildren(...model.patterns.map((item) => new Option(`${item.label} · ${number.format(item.n)} transações`, String(item.code))));
   $("pattern").value = model.patterns.some((item) => String(item.code) === EXAMPLE.pattern) ? EXAMPLE.pattern : String(model.patterns[0].code);
 }
 
@@ -364,7 +379,7 @@ function resetExample() {
   $("year-built").value = EXAMPLE.yearBuilt;
   $("pattern").value = EXAMPLE.pattern;
   $("fiscal").value = EXAMPLE.fiscal;
-  $("declared").checked = true;
+  // #declared fica como está: o exemplo preenche, mas só o usuário confirma (VULN-010)
   $("address-lookup-status").textContent = "Só sai do seu navegador se você clicar em Localizar CEP: o endereço é então enviado ao OpenStreetMap (Nominatim) para preencher o CEP.";
   setReaderStatus("", "Nenhum documento selecionado.");
   document.querySelectorAll("[data-variable]").forEach((input) => { input.checked = true; });

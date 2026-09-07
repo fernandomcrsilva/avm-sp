@@ -79,10 +79,16 @@
     return reasons;
   }
 
-  function priceReason(model, price) {
-    const [lo, hi] = model.applicability.price_brl;
-    if (between(price, [lo, hi])) return null;
-    return { code: "price", text: `valor central estimado de ${brl.format(price)} fora da faixa de preços de treino de ${brl.format(lo)} a ${brl.format(hi)}` };
+  // Preço central e, quando a área está habilitada (area finita), preço por m² (VULN-011). Devolve o primeiro motivo.
+  function priceReason(model, price, area) {
+    const a = model.applicability;
+    if (!between(price, a.price_brl)) {
+      return { code: "price", text: `valor central estimado de ${brl.format(price)} fora da faixa de preços de treino de ${brl.format(a.price_brl[0])} a ${brl.format(a.price_brl[1])}` };
+    }
+    if (Number.isFinite(area) && !between(price / area, a.price_m2_brl)) {
+      return { code: "price_m2", text: `valor unitário estimado de ${brl.format(price / area)}/m² fora da faixa de treino de ${brl.format(a.price_m2_brl[0])} a ${brl.format(a.price_m2_brl[1])}/m²` };
+    }
+    return null;
   }
 
   root.AvmPredict = { modelKey, features, logPrice, interval, limitReasons, priceReason };
