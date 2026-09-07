@@ -77,8 +77,11 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
 - SSL/TLS **Full (strict)**, Always Use HTTPS **on**, TLS mínimo **1.2**, HSTS **on** (180 dias, sem preload).
 - **Bot Fight Mode desligado** e JavaScript Detections desligado. Se religar, a Cloudflare injeta script inline
   bloqueado pela CSP: erro de console e Lighthouse Boas Práticas cai para 93. Block AI Bots continua ligado.
-- Rate limit `freio-de-custo-api`: bloqueia `/api/*` acima de 100 req/10 s por IP (vale para `/api/erro`).
+- Rate limit `freio-de-custo-api`: bloqueia `/api/*` acima de 100 req/10 s por IP (vale para `/api/erro`, mas só no domínio).
 - `_headers` só vale para respostas de assets; as do Worker (`/api/erro`) trazem cabeçalhos no código.
+- `/api/erro` (no código, vale também em `*.workers.dev`): só `avm.heybrain.uk` (404), só `POST` (405), só `Sec-Fetch-Site: same-origin` (403),
+  só `Content-Type: application/json` (415), `Content-Length` obrigatório e ≤ 2048 (413), 5 avisos/min por IP pelo binding
+  `ERRO_RL` do `wrangler.jsonc` (429). Teste local: `npx wrangler dev` e os `fetch` listados em `docs/aceite-seguranca-*.md`.
 
 ## Observabilidade
 
