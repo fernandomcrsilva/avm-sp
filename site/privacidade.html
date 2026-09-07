@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071a2b">
+  <meta name="description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço quando você aciona a busca de CEP.">
+  <title>Privacidade — AVM SP</title>
+  <link rel="canonical" href="https://avm.heybrain.uk/privacidade">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="AVM SP — início"><span class="brand-mark" aria-hidden="true">A</span><span><strong>AVM/SP</strong><small>estimativa estatística de valor</small></span></a>
+    <nav class="tabs" aria-label="Páginas"><a class="tab" href="/">Estimar</a><a class="tab" href="/metodologia">Metodologia</a></nav>
+    <div></div>
+  </header>
+  <main class="page-prose">
+    <p class="eyebrow">Privacidade</p>
+    <h1>Não coletamos os seus dados</h1>
+    <article class="panel prose-panel">
+      <p class="lead">O AVM SP foi construído para funcionar <strong>inteiramente no seu navegador</strong>. Não há conta, não há cookie, não há banco de dados e não há servidor que receba o que você digita. Esta página explica a única exceção e o que o provedor de hospedagem vê.</p>
+      <h2>1. O que fica só no seu navegador</h2>
+      <ul>
+        <li><strong>Os dados do imóvel</strong> (área, ano, padrão, valor fiscal, CEP): usados no cálculo, na tela, e descartados quando você fecha a aba. Nada é gravado em cookies, <em>localStorage</em> ou similares.</li>
+        <li><strong>A matrícula</strong> que você seleciona: é lida localmente por PDF.js e, se for imagem digitalizada, reconhecida por OCR também local (Tesseract, com o idioma português embarcado no site). O arquivo nunca sai do seu dispositivo.</li>
+        <li><strong>O resumo e o Excel</strong>: são gerados no navegador e salvos onde você escolher.</li>
+      </ul>
+      <h2>2. A única exceção: localizar o CEP</h2>
+      <p>Se você digitar um endereço e <strong>clicar em “Localizar CEP”</strong>, o endereço digitado é enviado ao serviço público Nominatim, da OpenStreetMap Foundation, para obter o CEP. Isso só acontece ao clicar; nada é enviado automaticamente enquanto você digita. O serviço está sujeito à <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noreferrer">política de privacidade da OpenStreetMap Foundation</a>. Se preferir não enviar o endereço, digite o CEP você mesmo ou deixe em branco: ele não entra no cálculo do valor.</p>
+      <h2>3. O que a hospedagem registra</h2>
+      <p>O site é servido pela Cloudflare. Como qualquer servidor web, ela processa endereço IP, navegador e páginas solicitadas para entregar os arquivos e se proteger de abuso, conforme a <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">política de privacidade da Cloudflare</a>. Não instalamos ferramentas de análise de audiência nem rastreadores de terceiros. Se isso mudar, esta página será atualizada antes.</p>
+      <h2>4. Seus direitos e contato</h2>
+      <p>Como não guardamos dados pessoais, não há o que acessar, corrigir ou excluir do nosso lado. Para qualquer dúvida sobre esta política, ou para apontar um erro no serviço, escreva para <a href="mailto:contato@heybrain.uk">contato@heybrain.uk</a>. Responsável pelo serviço: HeyBrain (heybrain.uk). Esta política segue a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>
+    </article>
+  </main>
+  <footer class="app-footer">
+    <span>AVM/SP</span>
+    <nav aria-label="Páginas institucionais"><a href="/metodologia">Metodologia</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
+  </footer>
+</body>
+</html>
