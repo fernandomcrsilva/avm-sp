@@ -21,7 +21,7 @@ NUMERIC_GROUPS = {
 }
 TOP_KEYS = [
     "version", "trained_at", "reference_date", "default_model_key", "variable_order",
-    "variable_definitions", "models", "patterns", "hyperparameters", "libraries",
+    "variable_definitions", "applicability", "models", "patterns", "hyperparameters", "libraries",
     "source", "pgv_source", "metrics", "eda", "cep3_stats", "cep4_stats", "feature_effects",
 ]
 METRIC_RANGES = {  # faixa sã: fora disso o treino deu errado ou a base mudou demais
@@ -148,6 +148,19 @@ def validate(m: dict) -> list[str]:
     for key in ("cep3_stats", "cep4_stats"):
         if not isinstance(m[key], dict) or not m[key]:
             bad(f"{key} vazio")
+
+    app = m["applicability"]
+    for key in ("area_m2", "year_built", "age_years", "price_brl", "price_m2_brl", "fiscal_vm2t_brl"):
+        rng = app.get(key)
+        if not (isinstance(rng, list) and len(rng) == 2 and all(finite(x) for x in rng) and rng[0] < rng[1]):
+            bad(f"applicability.{key} deveria ser [min, max] com min < max: {rng!r}")
+    if not isinstance(app.get("base_year"), int) or app["base_year"] != app.get("year_built", [0, 0])[1]:
+        bad("applicability.base_year deveria ser igual a year_built[1]")
+    codes = app.get("pattern_codes")
+    if not (isinstance(codes, list) and codes and all(isinstance(c, int) for c in codes)):
+        bad(f"applicability.pattern_codes inválido: {codes!r}")
+    elif patterns and set(codes) != {p.get("code") for p in patterns}:
+        bad("applicability.pattern_codes difere dos códigos em patterns")
     return problems
 
 

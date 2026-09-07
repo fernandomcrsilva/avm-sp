@@ -41,6 +41,18 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from parity_fixture import write_fixture  # noqa: E402  (mesmo formato do gerador "formula")
 REFERENCE_DATE = pd.Timestamp("2026-07-01")
 ALPHA = 1.0
+BASE_YEAR = 2026  # ano-base da idade (idade = BASE_YEAR - ano de conclusão ACC)
+# Limites de aplicabilidade: usados nos filtros de clean_data E exportados em payload["applicability"],
+# de onde a UI lê para recusar estimativas fora do domínio de treino. Mude aqui, muda nos dois.
+LIMITS = {
+    "area_m2": (35, 250),
+    "year_built": (2006, BASE_YEAR),
+    "price_brl": (50_000, 2_250_000),
+    "price_m2_brl": (1_500, 35_000),
+    "pattern_codes": (20, 25),
+    "proportion_pct": (99, 100),
+    "date": ("2025-07-01", "2026-07-31"),
+}
 
 VARIABLE_ORDER = ["area", "age", "pattern", "fiscal"]
 NUMERIC_GROUPS = {
@@ -158,14 +170,14 @@ def clean_data(raw: pd.DataFrame, pgv: pd.DataFrame) -> tuple[pd.DataFrame, dict
 
     selected = raw[
         purchase_sale
-        & proportion.between(99, 100)
-        & area.between(35, 250)
-        & year_built.between(2006, 2026)
-        & price.between(50_000, 2_250_000)
+        & proportion.between(*LIMITS["proportion_pct"])
+        & area.between(*LIMITS["area_m2"])
+        & year_built.between(*LIMITS["year_built"])
+        & price.between(*LIMITS["price_brl"])
         & use.eq(20)
-        & pattern.between(20, 25)
+        & pattern.between(*LIMITS["pattern_codes"])
         & raw["Situação do SQL"].astype(str).str.startswith("Ativo Predial")
-        & date.between("2025-07-01", "2026-07-31")
+        & date.between(*LIMITS["date"])
     ].copy()
 
     selected["area"] = pd.to_numeric(selected["Área Construída (m2)"], errors="coerce")
@@ -174,12 +186,12 @@ def clean_data(raw: pd.DataFrame, pgv: pd.DataFrame) -> tuple[pd.DataFrame, dict
     )
     selected["date"] = pd.to_datetime(selected["Data de Transação"], errors="coerce")
     selected["year_built"] = pd.to_numeric(selected["ACC (IPTU)"], errors="coerce")
-    selected["age"] = (2026 - selected["year_built"]).clip(0, 20)
+    selected["age"] = (BASE_YEAR - selected["year_built"]).clip(0, BASE_YEAR - LIMITS["year_built"][0])
     selected["pattern"] = (
         pd.to_numeric(selected["Padrão (IPTU)"], errors="coerce").fillna(22).astype(int).astype(str)
     )
     selected["price_m2"] = selected["price"] / selected["area"]
-    selected = selected[selected["price_m2"].between(1_500, 35_000)].copy()
+    selected = selected[selected["price_m2"].between(*LIMITS["price_m2_brl"])].copy()
 
     selected["sql"] = (
         pd.to_numeric(selected["N° do Cadastro (SQL)"], errors="coerce")
@@ -431,6 +443,21 @@ def main(
                 "unit": "R$/m² de terreno",
                 "transformation": "ln(VM2T/3.000) e seu quadrado",
             },
+        },
+        "applicability": {
+            "$comment": "Domínio de treino. A UI recusa estimativas fora destes limites.",
+            "area_m2": list(LIMITS["area_m2"]),
+            "year_built": list(LIMITS["year_built"]),
+            "base_year": BASE_YEAR,
+            "age_years": [0, BASE_YEAR - LIMITS["year_built"][0]],
+            "price_brl": list(LIMITS["price_brl"]),
+            "price_m2_brl": list(LIMITS["price_m2_brl"]),
+            "fiscal_vm2t_brl": [int(df["fiscal"].min()), int(df["fiscal"].max())],
+            "pattern_codes": sorted(int(code) for code in df["pattern"].unique()),
+            "use_iptu": 20,
+            "nature": "1.Compra e venda",
+            "sql_status": "Ativo Predial",
+            "transaction_dates": list(LIMITS["date"]),
         },
         "models": models,
         "patterns": patterns,
