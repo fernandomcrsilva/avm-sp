@@ -101,7 +101,7 @@
             <small id="active-model-note">4 variáveis ativas · modelo completo</small>
           </fieldset>
 
-          <label class="declare"><input id="declared" type="checkbox" checked><span>Confirmo que é um <strong>apartamento residencial</strong> (uso IPTU 20), com inscrição predial ativa (SQL), e que a operação é de <strong>compra e venda</strong>.</span></label>
+          <label class="declare"><input id="declared" type="checkbox" checked><span>Confirmo que é um <strong>apartamento residencial</strong> (uso IPTU <span id="declare-use">—</span>), com inscrição predial ativa (SQL), e que a operação é de <strong>compra e venda</strong>.</span></label>
 
           <div class="form-actions">
             <button class="primary-button" type="submit">Estimar valor <span aria-hidden="true">→</span></button>
@@ -124,7 +124,7 @@
           </div>
 
           <div id="result-content" hidden>
-            <p class="result-label">Faixa de valor com 80% de probabilidade</p>
+            <p class="result-label">Faixa de valor com <span data-coverage>—</span>% de probabilidade</p>
             <p id="interval" class="interval-main">—</p>
             <p class="estimate-secondary">Valor central <b id="estimate">—</b> <span id="price-m2">—</span></p>
 
@@ -154,7 +154,7 @@
             <h2>Apartamento residencial em São Paulo</h2>
             <p id="report-id">Identificação —</p>
           </div>
-          <div class="report-result"><small>Faixa de 80%</small><strong id="report-interval">—</strong><span id="report-estimate">—</span></div>
+          <div class="report-result"><small>Faixa de <span data-coverage>—</span>%</small><strong id="report-interval">—</strong><span id="report-estimate">—</span></div>
         </div>
         <div class="report-grid">
           <section><h3>Dados informados</h3><dl id="report-property"></dl></section>
@@ -171,7 +171,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b></span>
+    <span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b> · fontes: <a id="footer-src-itbi" href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501" target="_blank" rel="noreferrer">Guias de ITBI pagas, Secretaria Municipal da Fazenda de São Paulo</a> e <a id="footer-src-pgv" href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025" target="_blank" rel="noreferrer">Lei Municipal 18.330/2025</a></span>
     <nav aria-label="Páginas institucionais"><a href="/metodologia">Metodologia</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
   </footer>
   <script src="assets/vendor/tesseract.min.js" defer></script>

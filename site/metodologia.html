@@ -54,7 +54,7 @@
         <article class="panel prose-panel wide">
           <span class="chapter">0</span><h2>O que é, e o que não é</h2>
           <p>Uma <strong>estimativa estatística</strong>: o modelo aprende, a partir de milhares de compras e vendas reais, como área, idade, padrão cadastral e valor fiscal do terreno se relacionam com o preço declarado, e aplica essa relação ao imóvel informado. Ele não visita o imóvel, não lê documentos jurídicos e não conhece reforma, vista, andar, vagas ou estado de conservação.</p>
-          <p>Por isso o resultado principal é uma <strong>faixa</strong>, calibrada para conter o preço em cerca de 80% dos casos, e não um número exato. Isto <strong>não é laudo nem avaliação de imóvel</strong> na acepção da NBR 14653-2 e não serve para garantia, financiamento, inventário ou fins judiciais. Para esses fins, procure um profissional habilitado.</p>
+          <p>Por isso o resultado principal é uma <strong>faixa</strong>, calibrada para conter o preço em cerca de <b data-coverage>—</b>% dos casos, e não um número exato. Isto <strong>não é laudo nem avaliação de imóvel</strong> na acepção da NBR 14653-2 e não serve para garantia, financiamento, inventário ou fins judiciais. Para esses fins, procure um profissional habilitado.</p>
         </article>
 
         <article class="panel prose-panel">
@@ -95,9 +95,9 @@ valor fiscal = ln(VM2T / 3.000) + termo quadrático
 padrão      = uma variável indicadora por padrão cadastral
 modelos     = um Ridge para cada combinação não vazia das 4 variáveis
 divisão     = temporal, por data da transação: treino, calibração e teste
-faixa       = split conformal, cobertura nominal de 80%</code></pre>
+faixa       = split conformal, cobertura nominal de <b data-coverage>—</b>%</code></pre>
           <p>Quando você desabilita uma variável, o aplicativo usa o modelo treinado <em>sem</em> ela, e não um coeficiente zerado. A divisão temporal resultou em <b id="m-split">—</b>; o teste é o período mais recente, o que evita usar o futuro para explicar o passado.</p>
-          <p><strong>Como a faixa é calculada.</strong> No conjunto de calibração, mede-se o erro absoluto em log de cada previsão e toma-se o quantil de 80%. A faixa de um imóvel novo é o valor central multiplicado e dividido pelo exponencial desse quantil. Ela é simétrica em log, portanto assimétrica em reais, e vale para o modelo escolhido.</p>
+          <p><strong>Como a faixa é calculada.</strong> No conjunto de calibração, mede-se o erro absoluto em log de cada previsão e toma-se o quantil de <b data-coverage>—</b>%. A faixa de um imóvel novo é o valor central multiplicado e dividido pelo exponencial desse quantil. Ela é simétrica em log, portanto assimétrica em reais, e vale para o modelo escolhido.</p>
         </article>
 
         <article class="panel chart-panel wide">
@@ -113,11 +113,11 @@ faixa       = split conformal, cobertura nominal de 80%</code></pre>
             <div><small>MdAPE</small><strong id="v-mdape">—</strong></div>
             <div><small>MAE</small><strong id="v-mae">—</strong></div>
             <div><small>RMSE</small><strong id="v-rmse">—</strong></div>
-            <div><small>Cobertura real da faixa de 80%</small><strong id="v-coverage">—</strong></div>
+            <div><small>Cobertura real da faixa de <span data-coverage>—</span>%</small><strong id="v-coverage">—</strong></div>
             <div><small>Transações no teste</small><strong id="v-test">—</strong></div>
           </div>
-          <p>Métricas do modelo completo no conjunto de teste, o período mais recente da base. MdAPE é o erro percentual mediano: metade das previsões erra menos que isso. A cobertura real mostra quantas vezes a faixa de 80% de fato conteve o preço declarado.</p>
-          <div class="table-wrap"><table class="sub-table"><thead><tr><th>Modelo</th><th>MAPE</th><th>MdAPE</th><th>Cobertura 80%</th><th>R² log</th></tr></thead><tbody id="sub-models"></tbody></table></div>
+          <p>Métricas do modelo completo no conjunto de teste, o período mais recente da base. MdAPE é o erro percentual mediano: metade das previsões erra menos que isso. A cobertura real mostra quantas vezes a faixa de fato conteve o preço declarado.</p>
+          <div class="table-wrap"><table class="sub-table"><thead><tr><th>Modelo</th><th>MAPE</th><th>MdAPE</th><th>Cobertura <span data-coverage>—</span>%</th><th>R² log</th></tr></thead><tbody id="sub-models"></tbody></table></div>
         </article>
 
         <article class="panel prose-panel wide">

@@ -51,6 +51,7 @@ function render(model) {
   const m = model.metrics;
   const h = model.hyperparameters;
   AvmCommon.fillVersion(model);
+  document.querySelectorAll("[data-coverage]").forEach((el) => { el.textContent = h.interval_nominal_coverage_pct; });
 
   text("sum-models", `${number.format(h.models_fitted)} Ridge`);
   text("eda-rows", number.format(model.eda.rows_model));
