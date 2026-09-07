@@ -1,0 +1,35 @@
+{
+ "url": "https://avm.heybrain.uk/",
+ "fetched_at": "2026-09-07T20:05:08.510Z",
+ "lighthouse": "12.8.2",
+ "form_factor": "mobile",
+ "throttling": "simulate",
+ "scores": {
+  "performance": 100,
+  "accessibility": 100,
+  "best-practices": 100,
+  "seo": 100
+ },
+ "metrics": {
+  "first-contentful-paint": "0.9 s",
+  "largest-contentful-paint": "1.1 s",
+  "total-blocking-time": "0 ms",
+  "cumulative-layout-shift": "0",
+  "speed-index": "0.9 s"
+ },
+ "failed_weighted_audits": {
+  "performance": [],
+  "accessibility": [],
+  "best-practices": [],
+  "seo": []
+ },
+ "initial_payload_brotli_bytes": {
+  "js_css_sem_tesseract": 21857,
+  "tesseract_min_js": 8241,
+  "index_html": 3026,
+  "model_json": 8315,
+  "orcamento_js_css": 153600
+ },
+ "notes": "Bot Fight Mode e JavaScript Detections da zona desligados em 2026-09-07 (injetavam script inline bloqueado pela CSP). Preview em workers.dev pontua SEO 66 por noindex proposital.",
+ "how": "npx lighthouse@12 <url> --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate --only-categories=performance,accessibility,best-practices,seo (Chromium do Playwright)"
+}
