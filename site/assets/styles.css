@@ -226,7 +226,8 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .nature-box strong { color: var(--lime); }
 .loading-state.is-error { color: #ffb3b3; }
 .declare { display: flex; gap: 10px; align-items: start; margin: 4px 0 6px; color: var(--ink-2); font-size: .84rem; line-height: 1.45; }
-.declare input { margin-top: 3px; flex: none; }
+.declare input { flex: 0 0 18px; width: 18px; height: 18px; margin: 3px 0 0; padding: 0; border-radius: 4px; accent-color: var(--cyan-dark); } /* anula input { width:100%; height:46px } */
+.declare span { flex: 1; min-width: 0; }
 .optional { color: var(--muted); font-weight: 500; font-size: .74rem; }
 .app-footer nav { display: flex; flex-wrap: wrap; gap: 14px; }
 .app-footer a { color: inherit; }
