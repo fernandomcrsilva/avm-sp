@@ -28,7 +28,8 @@ git tag v1.0.0 && git push origin v1.0.0
 ```
 
 Segredo necessário no repositório: `CLOUDFLARE_API_TOKEN` (Settings → Secrets and variables → Actions).
-Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit**, restrito à conta HeyBrain!.
+Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit** (+ Account Settings → Read), restrito à conta HeyBrain!,
+validade de 1 ano: **rotacionar até 2027-09-07** (criar novo, `gh secret set CLOUDFLARE_API_TOKEN`, revogar o antigo).
 Nunca commitar o token; nunca colar em log.
 
 Mudanças em **triggers** (rota, Custom Domain, cron) não entram por `versions deploy`: rode `npx wrangler triggers deploy`
@@ -43,6 +44,8 @@ npx wrangler versions list                      # ache o id da última versão b
 npx wrangler versions deploy <id-anterior>@100% -y
 curl -s https://avm.heybrain.uk/version.json    # confirme git_sha/model_version (até ~1 min para propagar)
 ```
+
+Testado em 2026-09-07: `versions deploy dd6e835c@100%` → `/version.json` voltou ao SHA anterior em ~75 s; `versions deploy f27111ae@100%` restaurou a v1.0.0.
 
 Atalho equivalente: `npx wrangler rollback` (interativo; escolhe uma implantação anterior). Depois de reverter,
 corrija em PR e publique por tag normalmente. Não há banco nem estado: reverter o Worker reverte tudo.
