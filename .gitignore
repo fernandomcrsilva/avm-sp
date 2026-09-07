@@ -1,0 +1,11 @@
+# fontes brutas ficam fora do git (Fase 1: data/sources.lock.json guarda os hashes)
+data/raw/
+# segredos
+.env
+.env.*
+.dev.vars
+# toolchains
+node_modules/
+.venv/
+__pycache__/
+.wrangler/
