@@ -125,4 +125,65 @@ export function buildInputs(docs, ambiguous = null) {
   };
 }
 
+const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+const SITE = "https://avm.heybrain.uk";
+const HEADER = "AVM SP — estimativa estatística de valor. Não é laudo nem avaliação (NBR 14653-2).";
+const FOOTER = `Mensagem automática. Os anexos foram processados em memória e não foram armazenados.`;
+
+const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
+
+function subjectFor(original) {
+  const clean = String(original || "").replace(/[\r\n]+/g, " ").trim();
+  return clean ? `Re: ${clean}` : "AVM SP — estimativa";
+}
+
+// Um bloco por parágrafo; o HTML é o mesmo texto, parágrafo a parágrafo, sem imagens nem CSS externo.
+function render(subject, blocks) {
+  const paragraphs = blocks.filter(Boolean);
+  return {
+    subject,
+    text: paragraphs.join("\n\n") + "\n",
+    html: `<!doctype html><html lang="pt-BR"><body>${paragraphs.map((p) => `<p>${escapeHtml(p).replaceAll("\n", "<br>")}</p>`).join("")}</body></html>`,
+  };
+}
+
+const list = (items) => items.map((item) => `- ${item}`).join("\n");
+const unreadableLine = (files) => (files.length ? `Não foi possível ler: ${files.join(", ")} (sem camada de texto).` : null);
+const ignoredLine = (files) => (files.length ? `Ignorados: ${files.join(", ")}.` : null);
+
+// Monta os textos da resposta (assunto, texto puro e HTML) a partir do relatório ou do motivo de não haver um.
+export function compose(kind, data) {
+  const subject = subjectFor(data.subject);
+  if (kind === "report") {
+    const { report } = data;
+    const p = report.property;
+    const r = report.result;
+    const place = [p.address, p.cep ? `CEP ${p.cep}` : null, p.district || null].filter(Boolean).join(" · ");
+    return render(subject, [
+      HEADER,
+      `Identificação: ${report.id}\nImóvel: ${place}\nDados usados: área privativa ${areaNumber.format(p.area)} m² (matrícula) · idade ${p.age} ${p.age === 1 ? "ano" : "anos"} / ${p.yearBuilt} (IPTU) · padrão ${p.patternLabel} (IPTU) · VM2T ${money.format(p.fiscal)}/m² (IPTU)\nFaixa de 80% de probabilidade: ${money.format(r.interval80[0])} a ${money.format(r.interval80[1])}\nValor central: ${money.format(r.estimate)}${r.pricePerM2 ? ` (${money.format(r.pricePerM2)}/m²)` : ""}`,
+      [`Documentos lidos: ${p.documentSource.fileName} — ${p.documentSource.method}.`, unreadableLine(data.unreadable || []), ignoredLine(data.ignored || [])].filter(Boolean).join(" "),
+      "Premissas: apartamento residencial (conforme a matrícula); compra e venda; SFH / SBPE registrados no relatório, sem efeito na estimativa.",
+      `Avisos:\n${list(report.risks)}`,
+      `O relatório completo está no Excel anexo. Metodologia: ${SITE}/metodologia`,
+      FOOTER,
+    ]);
+  }
+  if (kind === "refused") {
+    return render(subject, [HEADER, `A estimativa foi recusada porque o imóvel está fora do domínio do modelo:\n${list(data.reasons.map((reason) => reason.text))}\nNão há relatório.`, `Metodologia e limites: ${SITE}/metodologia`, FOOTER]);
+  }
+  if (kind === "missing") {
+    return render(subject, [HEADER, `Não foi possível estimar. Faltou:\n${list(data.missing)}`, unreadableLine(data.unreadable || []), ignoredLine(data.ignored || []), "Reenvie com os documentos completos, em um único e-mail.", FOOTER]);
+  }
+  if (kind === "unreadable") {
+    return render(subject, [HEADER, unreadableLine(data.unreadable), "Envie o PDF original digital.", FOOTER]);
+  }
+  if (kind === "ambiguous") {
+    const what = data.ambiguous === "iptu" ? "mais de um carnê de IPTU" : "mais de uma matrícula";
+    return render(subject, [HEADER, `Foram encontrados ${what} entre os anexos. Envie um imóvel por e-mail.`, FOOTER]);
+  }
+  throw new Error(`compose: tipo desconhecido ${kind}`);
+}
+
 export { model }; // o mesmo model.json do site, empacotado no Worker
