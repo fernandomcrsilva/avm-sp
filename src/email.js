@@ -186,4 +186,71 @@ export function compose(kind, data) {
   throw new Error(`compose: tipo desconhecido ${kind}`);
 }
 
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+const USER_AGENT = "AVM-SP/1 (avm@heybrain.uk)"; // política de uso do Nominatim: identificar a aplicação
+
+// Texto de cada PDF pelo serviço de conversão do Workers AI (sem biblioteca de PDF no Worker).
+async function extractTexts(ai, attachments) {
+  const texts = [];
+  for (const att of attachments) {
+    if (att.mimeType !== PDF_TYPE) { texts.push({ fileName: att.fileName, text: "", method: "imagem" }); continue; } // imagens: Entrega 2
+    let text = "";
+    try {
+      const [result] = await ai.toMarkdown(
+        [{ name: att.fileName, blob: new Blob([att.bytes], { type: PDF_TYPE }) }],
+        { output: { format: "text" }, conversionOptions: { pdf: { excludeMetadata: true } } },
+      );
+      text = String(result?.data || "");
+    } catch (_) {
+      text = ""; // serviço indisponível ou PDF corrompido: vira "não lido"
+    }
+    texts.push({ fileName: att.fileName, text, method: "texto do PDF" });
+  }
+  return texts;
+}
+
+// Uma consulta, só para o bairro; o CEP do documento prevalece (mesma regra do site). Falha → sem bairro.
+async function lookupDistrict(fetchFn, v) {
+  try {
+    const params = new URLSearchParams({ q: `${v.address}, São Paulo, SP, Brasil`, format: "jsonv2", addressdetails: "1", countrycodes: "br", limit: "5", dedupe: "1", "accept-language": "pt-BR" });
+    const response = await fetchFn(`${NOMINATIM}?${params}`, { headers: { Accept: "application/json", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return;
+    const results = await response.json();
+    const candidate = (Array.isArray(results) ? results : []).find((item) => item.address?.postcode) || results[0];
+    const details = candidate?.address || {};
+    v.district = details.suburb || details.neighbourhood || details.quarter || details.city_district || "";
+    if (!v.cep8 && details.postcode) { v.cep = formatCep(details.postcode); v.cep8 = v.cep.replace("-", ""); }
+    if (v.documentSource) v.documentSource.geocode = "OpenStreetMap/Nominatim";
+  } catch (_) { /* sem bairro: o relatório sai assim mesmo */ }
+}
+
+// Do e-mail bruto à resposta pronta. Nada persiste; deps traz os serviços para o teste injetar os seus.
+export async function processEmail({ raw, subject }, deps) {
+  const now = deps.now || new Date();
+  const inbound = await parseInbound(raw);
+  const texts = await extractTexts(deps.ai, inbound.attachments);
+  const { docs, ambiguous } = readDocuments(texts);
+  const unreadable = docs.filter((d) => d.unreadable).map((d) => d.fileName);
+  const log = { documents: docs.length, unreadable: unreadable.length, ocr_pages: 0 };
+  const finish = (outcome, reply) => ({ outcome, reply: { ...reply, attachments: reply.attachments || [] }, messageId: inbound.messageId, log });
+  const base = { subject: subject ?? inbound.subject, unreadable, ignored: inbound.ignored };
+
+  if (docs.length && unreadable.length === docs.length) return finish("unreadable", compose("unreadable", base));
+  const built = buildInputs(docs, ambiguous);
+  if (built.ambiguous) return finish("ambiguous", compose("ambiguous", { ...base, ambiguous: built.ambiguous }));
+  if (built.missing) return finish("missing", compose("missing", { ...base, missing: built.missing }));
+  if (built.notApartment) return finish("refused", compose("refused", { ...base, reasons: [{ code: "apartment", text: "a matrícula não descreve um apartamento; o modelo cobre apenas apartamentos residenciais" }] }));
+
+  const { v } = built;
+  await lookupDistrict(deps.fetch, v);
+  const { AvmReport, AVMExcel } = globalThis;
+  const computed = AvmReport.estimate(model, v);
+  if (computed.refused) return finish("refused", compose("refused", { ...base, reasons: computed.refused }));
+  const report = await AvmReport.build(model, v, computed, now);
+  const bytes = AVMExcel.buildWorkbook(report);
+  const content = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return finish("report", { ...compose("report", { ...base, report }), attachments: [{ filename: `${report.id}.xlsx`, content, type: XLSX_TYPE, disposition: "attachment" }] });
+}
+
 export { model }; // o mesmo model.json do site, empacotado no Worker

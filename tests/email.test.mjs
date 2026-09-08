@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CARNE, MATRICULA, MATRICULA_CASA } from "./fixtures/textos.mjs";
-import { LIMITS, parseInbound, readDocuments, buildInputs, compose } from "../src/email.js";
+import { LIMITS, parseInbound, readDocuments, buildInputs, compose, processEmail } from "../src/email.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
 export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [] } = {}) {
@@ -139,4 +139,60 @@ test("compose: recusa, faltou, não lido e ambíguo", () => {
   assert.ok(norm(ambiguous.text).includes("mais de uma matrícula") && norm(ambiguous.text).includes("Envie um imóvel por e-mail."));
   const notApartment = compose("refused", { subject: "x", reasons: [{ code: "apartment", text: "a matrícula não descreve um apartamento; o modelo cobre apenas apartamentos residenciais" }] });
   assert.ok(norm(notApartment.text).includes("não descreve um apartamento"));
+});
+
+// Serviços falsos: toMarkdown devolve o texto do fixture pelo nome do arquivo; Nominatim devolve um bairro.
+const TEXTOS = { "iptu.pdf": CARNE, "matricula.pdf": MATRICULA, "casa.pdf": MATRICULA_CASA, "vazio.pdf": "" };
+const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, mimeType: "application/pdf", format: "text", tokens: 0, data: TEXTOS[doc.name] ?? "" })) };
+const nominatimCalls = [];
+const fetchFalso = async (url, init) => {
+  nominatimCalls.push({ url: String(url), init });
+  return { ok: true, json: async () => [{ address: { postcode: "04109-002", suburb: "Paraíso" } }] };
+};
+const deps = { ai, fetch: fetchFalso, now: new Date("2026-09-08T12:00:00Z") };
+const anexos = (nomes) => nomes.map((nome) => [nome, "application/pdf", `%PDF-1.4 ${nome}`]);
+
+test("processEmail: dois PDFs → relatório com Excel anexo e bairro do Nominatim", async () => {
+  nominatimCalls.length = 0;
+  const out = await processEmail({ raw: raw({ attachments: anexos(["iptu.pdf", "matricula.pdf"]) }), subject: "Avaliação" }, deps);
+  assert.equal(out.outcome, "report");
+  assert.equal(out.messageId, "<abc123@exemplo.gov.br>");
+  assert.equal(out.reply.subject, "Re: Avaliação");
+  assert.ok(out.reply.text.includes("Paraíso"));
+  assert.equal(out.reply.attachments.length, 1);
+  const [xlsx] = out.reply.attachments;
+  assert.match(xlsx.filename, /^AVM-SP-20260908-[0-9A-F]{12}\.xlsx$/);
+  assert.equal(xlsx.type, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  assert.ok(xlsx.content instanceof Uint8Array && xlsx.content.length > 1000);
+  assert.equal(String.fromCharCode(...xlsx.content.slice(0, 2)), "PK"); // é um zip
+  assert.equal(nominatimCalls.length, 1);
+  assert.ok(nominatimCalls[0].url.startsWith("https://nominatim.openstreetmap.org/search?"));
+  assert.equal(nominatimCalls[0].init.headers["User-Agent"], "AVM-SP/1 (avm@heybrain.uk)");
+  assert.deepEqual(out.log, { documents: 2, unreadable: 0, ocr_pages: 0 });
+});
+
+test("processEmail: Nominatim falha → relatório sem bairro, sem erro", async () => {
+  const out = await processEmail({ raw: raw({ attachments: anexos(["iptu.pdf", "matricula.pdf"]) }), subject: "x" }, { ...deps, fetch: async () => { throw new Error("rede"); } });
+  assert.equal(out.outcome, "report");
+  assert.ok(out.reply.text.includes("Rua Vergueiro, 2650 · CEP 04109-002\n"));
+});
+
+test("processEmail: só matrícula → faltou; matrícula de casa → recusa; sem texto → não lido; duas matrículas → ambíguo", async () => {
+  assert.equal((await processEmail({ raw: raw({ attachments: anexos(["matricula.pdf"]) }), subject: "x" }, deps)).outcome, "missing");
+  const casa = await processEmail({ raw: raw({ attachments: anexos(["iptu.pdf", "casa.pdf"]) }), subject: "x" }, deps);
+  assert.equal(casa.outcome, "refused");
+  assert.ok(casa.reply.text.includes("não descreve um apartamento"));
+  const vazio = await processEmail({ raw: raw({ attachments: anexos(["vazio.pdf"]) }), subject: "x" }, deps);
+  assert.equal(vazio.outcome, "unreadable");
+  assert.equal(vazio.log.unreadable, 1);
+  const duas = await processEmail({ raw: raw({ attachments: [["a.pdf", "application/pdf", "x"], ["b.pdf", "application/pdf", "y"], ...anexos(["iptu.pdf"])] }), subject: "x" }, { ...deps, ai: { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: doc.name === "iptu.pdf" ? CARNE : MATRICULA })) } });
+  assert.equal(duas.outcome, "ambiguous");
+});
+
+test("processEmail: fora do domínio → recusada com os textos do modelo", async () => {
+  const grande = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: doc.name === "iptu.pdf" ? CARNE : MATRICULA.replace("78,00 m²", "300,00 m²") })) };
+  const out = await processEmail({ raw: raw({ attachments: anexos(["iptu.pdf", "matricula.pdf"]) }), subject: "x" }, { ...deps, ai: grande });
+  assert.equal(out.outcome, "refused");
+  assert.ok(out.reply.text.includes("fora do domínio do modelo"));
+  assert.deepEqual(out.reply.attachments, []);
 });
