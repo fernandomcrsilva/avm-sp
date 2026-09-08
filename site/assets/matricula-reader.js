@@ -6,7 +6,8 @@
   const MAX_OCR_PAGES = 4;
   const NUMBER_PATTERN = "(?:\\d{1,4}(?:\\.\\d{3})*(?:,\\d+)?|\\d{1,4}(?:[.,]\\d+)?)";
   const AREA_UNIT = "(?:m\\s*[²2]|metros?\\s+quadrados?)";
-  const SCRIPT_BASE_URL = new URL(".", document.currentScript.src); // script clássico: sempre definido
+  // Script clássico: no navegador currentScript está sempre definido; em Node (tests/) só a extração é usada.
+  const SCRIPT_BASE_URL = typeof document !== "undefined" && document.currentScript ? new URL(".", document.currentScript.src) : null;
 
   function resolveAssetUrl(fileName) {
     return new URL(fileName, SCRIPT_BASE_URL).href;
@@ -50,7 +51,7 @@
     const flat = cleanText(text).replace(/\s*\n\s*/g, " ");
     const street = "(RUA|R\\.|AVENIDA|AV\\.|ALAMEDA|TRAVESSA|PRAÇA|PRACA|ESTRADA|RODOVIA|LARGO|VIELA|PASSAGEM)";
     const marker = "(?:,\\s*(?:(?:N(?:ÚMERO|UMERO|[º°O])?|NRO)\\.?\\s*)?|\\s+(?:(?:N(?:ÚMERO|UMERO|[º°O])?|NRO)\\.?\\s*))";
-    const regex = new RegExp(`\\b${street}\\s+([\\p{L}\\d][\\p{L}\\d .'’´-]{1,90}?)${marker}(\\d{1,6}[A-Z]?)\\b`, "giu");
+    const regex = new RegExp(`\\b${street}\\s+([\\p{L}\\d][\\p{L}\\d .'’´-]{1,90}?)${marker}(\\d{1,6}(?:\\.\\d{3})?[A-Z]?)\\b`, "giu"); // "nº 2.650" com ponto de milhar
     const candidates = [];
     for (const match of flat.matchAll(regex)) {
       const name = match[2].replace(/[.,;:\s]+$/g, "").trim();
@@ -63,7 +64,7 @@
       if (/cart[oó]rio|registro de im[oó]veis|oficial|tabeli[aã]o|serventia/.test(closeBefore)) score -= 8;
       if (match.index < flat.length * 0.35) score += 2;
       candidates.push({
-        address: `${canonicalStreetType(match[1])} ${titleCaseStreet(name)}, ${match[3]}`,
+        address: `${canonicalStreetType(match[1])} ${titleCaseStreet(name)}, ${match[3].replace(".", "")}`,
         score,
         index: match.index,
       });
@@ -104,6 +105,51 @@
       textLength: cleaned.length,
     };
   }
+
+  // Carnê ou matrícula? Uma matrícula cita "contribuinte" e "IPTU" nas averbações, então cada lado pontua e
+  // os marcadores fortes (cabeçalho do carnê, cartório) pesam mais. Sem texto (digitalizado) cai em matrícula
+  // e o OCR decide depois.
+  function detectDocumentType(text) {
+    const flat = cleanText(text).normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("pt-BR");
+    const score = (patterns, weight) => patterns.reduce((total, pattern) => total + (pattern.test(flat) ? weight : 0), 0);
+    const iptu = score([/NOTIFICACAO DE LANCAMENTO/, /IMPOSTO PREDIAL/], 3) + score([/\bIPTU\b/, /NUMERO DO CONTRIBUINTE/, /VALOR VENAL/, /TIPO\s*\/\s*PADRAO/], 1);
+    const matricula = score([/REGISTRO DE IMOVEIS/, /\bMATRICULA\b/], 3) + score([/\bOFICIAL\b/, /AVERBACAO/, /\bAV\.\s*\d/], 1);
+    return iptu > matricula ? "iptu" : "matricula";
+  }
+
+  // Notificação de Lançamento do IPTU (PMSP): traz o que a matrícula não tem — ano de construção, tipo/padrão
+  // e valor do m² do terreno (VM2T da PGV). A área construída do carnê é ignorada de propósito: o modelo usa a
+  // área privativa da matrícula. Só o tipo 2 (residencial vertical) vira código; os demais ficam fora do modelo.
+  const IPTU_STREET_ABBREVIATIONS = { R: "Rua", AV: "Avenida", AL: "Alameda", TV: "Travessa", PC: "Praça", "PÇ": "Praça", EST: "Estrada", ROD: "Rodovia", LGO: "Largo", VLA: "Viela" };
+
+  function extractIptuFields(text) {
+    // O cadastro abrevia o logradouro sem ponto ("R VERGUEIRO, 2650"); expandido, o extrator da matrícula serve.
+    const flat = cleanText(text).replace(/\s*\n\s*/g, " ")
+      .replace(/\b(R|AV|AL|TV|PC|PÇ|EST|ROD|LGO|VLA)\s+(?=\p{L})/gu, (_, abbreviation) => `${IPTU_STREET_ABBREVIATIONS[abbreviation]} `);
+    const first = (regex) => flat.match(regex)?.[1] ?? null;
+    const year = Number(first(/ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?[^0-9]{0,15}((?:19|20)\d{2})\b/iu));
+    const pattern = flat.match(/(?:tipo\s*\/\s*padr[ãa]o|padr[ãa]o(?:\s+d[aeo]\s+constru[çc][ãa]o)?)[^0-9A-Z]{0,15}(\d)\s*[-–/ ]?\s*([A-E])\b/iu)
+      || flat.match(/\btipo[^0-9]{0,6}(\d)[^A-Z]{0,25}padr[ãa]o[^A-Z]{0,6}([A-E])\b/iu);
+    // "Valor do m² do Terreno" ou "Valor Unitário do Terreno"; "Valor Venal do Terreno" (total) fica de fora.
+    const fiscal = parsePtNumber(first(new RegExp(`valor\\s+(?:unit[áa]rio\\s+(?:do\\s+m\\s*[²2]?\\s+)?|do\\s+m\\s*[²2]?\\s+)d[eo]\\s+terreno[^0-9]{0,20}(${NUMBER_PATTERN})`, "iu")));
+    const cep = first(/\bCEP\b[^0-9]{0,6}(\d{5}-?\d{3})\b/iu) || first(/\b(\d{5}-\d{3})\b/u);
+    const letterIndex = pattern ? "ABCDE".indexOf(pattern[2].toUpperCase()) : -1;
+    return {
+      sql: first(/\b(\d{3}\.\d{3}\.\d{4}-\d)\b/u), // setor.quadra.lote-dígito, formato do cadastro imobiliário de SP
+      yearBuilt: year >= 1900 && year <= new Date().getFullYear() + 1 ? year : null,
+      patternCode: pattern && pattern[1] === "2" && letterIndex >= 0 ? 20 + letterIndex : null,
+      patternLabel: pattern ? `${pattern[1]}-${pattern[2].toUpperCase()}` : null,
+      fiscal: fiscal > 0 ? fiscal : null,
+      address: extractAddress(flat),
+      cep: cep ? cep.replace(/(\d{5})-?(\d{3})/, "$1-$2") : null,
+      textLength: flat.length,
+    };
+  }
+
+  const READERS = {
+    matricula: { extract: extractFields, complete: (f) => Boolean(f.address && f.area), missing: (f) => [!f.address && "Endereço não localizado", !f.area && "Área privativa não localizada"] },
+    iptu: { extract: extractIptuFields, complete: (f) => Boolean(f.yearBuilt && f.patternCode && f.fiscal), missing: (f) => [!f.yearBuilt && "Ano de construção não localizado", !f.patternCode && (f.patternLabel ? `Tipo/padrão ${f.patternLabel} não é residencial vertical (2-A a 2-E)` : "Tipo/padrão não localizado"), !f.fiscal && "Valor do m² do terreno não localizado"] },
+  };
 
   async function loadPdf(file, onProgress) {
     onProgress({ message: "Lendo o texto do PDF…", progress: 0.08 });
@@ -179,7 +225,7 @@
   }
 
   async function read(file, onProgress = () => {}) {
-    if (!file) throw new Error("Selecione uma matrícula em PDF ou imagem.");
+    if (!file) throw new Error("Selecione um documento em PDF ou imagem.");
     if (file.size > MAX_FILE_BYTES) throw new Error("O arquivo deve ter no máximo 25 MB.");
     const isPdf = file.type === "application/pdf" || file.name.toLocaleLowerCase("pt-BR").endsWith(".pdf");
     const isImage = /^image\/(png|jpeg|webp)$/i.test(file.type);
@@ -195,12 +241,12 @@
         pdf = loaded.pdf;
         text = loaded.text;
         method = "texto do PDF";
-        const firstPass = extractFields(text);
-        if (!firstPass.address || !firstPass.area) {
+        const firstPass = READERS[detectDocumentType(text)];
+        if (!firstPass.complete(firstPass.extract(text))) { // camada de texto insuficiente (ou ausente): OCR completa
           try {
             const ocrText = await ocrPdf(pdf, onProgress);
             text = `${text}\n${ocrText}`;
-            method = text.trim() ? "texto do PDF + OCR" : "OCR";
+            method = loaded.text.trim() ? "texto do PDF + OCR" : "OCR";
           } catch (error) {
             warning = `OCR indisponível: ${error.message}`;
           }
@@ -212,17 +258,18 @@
       if (pdf) await pdf.destroy();
     }
 
-    onProgress({ message: "Interpretando endereço e área…", progress: 0.95 });
-    const fields = extractFields(text);
-    const warnings = [warning];
-    if (!fields.address) warnings.push("Endereço não localizado; informe-o manualmente");
-    if (!fields.area) warnings.push("Área privativa não localizada; informe-a manualmente");
-    warning = warnings.filter(Boolean).join(". ") || null;
-    if (!fields.address && !fields.area) {
-      throw new Error(`Não foi possível localizar o endereço nem a área privativa. ${warning || "Confira a nitidez do documento e preencha manualmente."}`);
+    const type = detectDocumentType(text); // só agora o texto está completo (com OCR, se houve)
+    const reader = READERS[type];
+    onProgress({ message: type === "iptu" ? "Interpretando ano, padrão e valor do terreno…" : "Interpretando endereço e área…", progress: 0.95 });
+    const fields = reader.extract(text);
+    const checks = reader.missing(fields);
+    const missing = checks.filter(Boolean);
+    warning = [warning, ...missing].filter(Boolean).join(". ") || null;
+    if (missing.length === checks.length) {
+      throw new Error(`Não foi possível ler ${type === "iptu" ? "o carnê de IPTU" : "a matrícula"}. ${warning}. Confira a nitidez do documento.`);
     }
-    return { ...fields, method, warning, fileName: file.name };
+    return { type, ...fields, method, warning, fileName: file.name };
   }
 
-  global.AVMMatricula = Object.freeze({ extractFields, parsePtNumber, read, resolveAssetUrl });
+  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, parsePtNumber, read, resolveAssetUrl });
 }(typeof window !== "undefined" ? window : globalThis));

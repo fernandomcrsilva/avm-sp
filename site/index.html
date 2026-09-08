@@ -64,11 +64,11 @@
 
           <section class="document-reader" aria-labelledby="matricula-title">
             <div>
-              <strong id="matricula-title">Preencher pela matrícula</strong>
-              <p>Selecione um PDF ou uma imagem. O documento é lido no seu navegador e não é enviado a nenhum servidor. O aplicativo tenta extrair o endereço e a área privativa.</p>
+              <strong id="matricula-title">Preencher pela matrícula e pelo IPTU</strong>
+              <p>Selecione os PDFs ou imagens, juntos ou um de cada vez. Os documentos são lidos no seu navegador e não são enviados a nenhum servidor. Da matrícula saem o endereço e a área privativa; do carnê de IPTU, o ano de construção, o padrão e o valor do m² do terreno.</p>
             </div>
-            <label class="secondary-button file-button" for="matricula-file">Selecionar e ler matrícula
-              <input id="matricula-file" type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" hidden>
+            <label class="secondary-button file-button" for="matricula-file">Selecionar e ler documentos
+              <input id="matricula-file" type="file" multiple accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" hidden>
             </label>
             <div id="matricula-status" class="reader-status" role="status" aria-live="polite">Nenhum documento selecionado.</div>
           </section>
