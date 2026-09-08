@@ -118,3 +118,51 @@ export async function pageImages(pdfBytes, maxPages = 4) {
   }
   return images;
 }
+
+// Decisão do spike (Task 1, 2026-09-08): Gemma 4 com a imagem como parte `image_url` da mensagem (variante a) transcreveu
+// corretamente o PNG sintético (3,5 s) e uma certidão real escaneada de 617×838 (8,5 s); a resposta vem no formato OpenAI
+// (`choices[0].message.content`). `image` na raiz (variante b) fez o modelo ignorar a imagem. Reserva: Llama 3.2 Vision
+// (`{ messages, image }`, texto em `response`, 11 s) — funciona, sem licença pendente.
+export const OCR_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+export const OCR_PROMPT = "Você é um OCR. Transcreva fielmente todo o texto da imagem, em português, preservando rótulos, números, pontuação e a ordem de leitura. Não resuma, não explique, não invente.";
+const USER_PROMPT = "Transcreva esta página.";
+
+export function ocrPayload(dataUri) {
+  return {
+    messages: [
+      { role: "system", content: OCR_PROMPT },
+      { role: "user", content: [{ type: "text", text: USER_PROMPT }, { type: "image_url", image_url: { url: dataUri } }] },
+    ],
+    max_tokens: 4096,
+    temperature: 0,
+    chat_template_kwargs: { enable_thinking: false },
+  };
+}
+
+// Gemma 4 responde no formato OpenAI (choices[0].message.content); a reserva Llama, em `response`.
+const responseText = (result) => (typeof result === "string" ? result : String(result?.choices?.[0]?.message?.content ?? result?.response ?? result?.result ?? result?.description ?? ""));
+
+export async function transcribe(ai, { bytes, mimeType }) {
+  const result = await ai.run(OCR_MODEL, ocrPayload(`data:${mimeType};base64,${toBase64(bytes)}`));
+  return responseText(result).trim();
+}
+
+const MIB = 1024 * 1024;
+
+// PDF: uma página por vez em memória (extrai → PNG → descarta os pixels), depois transcreve todas em paralelo.
+// Imagem anexada: vai como está. Falha numa página não derruba as outras; nada legível → { text: "", pages: 0 }.
+export async function ocrDocument(ai, { bytes, mimeType }, { maxPages = 4, maxPngBytes = 4 * MIB, maxImageBytes = 5 * MIB } = {}) {
+  let images = [];
+  if (mimeType === "application/pdf") {
+    for (const image of await pageImages(bytes, maxPages)) {
+      let png = await encodePng(image, 1600);
+      for (let side = 1200; png.length > maxPngBytes && side >= 600; side -= 300) png = await encodePng(image, side); // página densa: reduz mais
+      if (png.length <= maxPngBytes) images.push({ bytes: png, mimeType: "image/png" });
+    }
+  } else if (bytes.length <= maxImageBytes) {
+    images = [{ bytes, mimeType }];
+  }
+  const texts = await Promise.all(images.map((image) => transcribe(ai, image).catch(() => null)));
+  const ok = texts.filter((text) => text !== null);
+  return { text: ok.join("\n"), pages: ok.length };
+}
