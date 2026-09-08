@@ -75,12 +75,14 @@
 
   function extractArea(text) {
     const flat = cleanText(text).replace(/\s*\n\s*/g, " ");
+    const label = "(?:(?:área\\s+)?(?:real\\s+)?privativa(?:\\s+(?:total|coberta|principal|da\\s+unidade))?|área\\s+de\\s+uso\\s+privativo)";
     const definitions = [
-      ["Área privativa", 50, "(?:área\\s+)?(?:real\\s+)?privativa(?:\\s+(?:total|coberta|principal|da\\s+unidade))?"],
+      ["Área privativa", 50, `${label}[^0-9]{0,55}(${NUMBER_PATTERN})\\s*${AREA_UNIT}(?![\\p{L}\\d])`],          // "área privativa de 78,00 m²"
+      ["Área privativa", 50, `(${NUMBER_PATTERN})\\s*${AREA_UNIT}\\s+de\\s+${label}(?![\\p{L}])`],                  // "41,06 m2 de área privativa"
     ];
     const candidates = [];
     definitions.forEach(([label, priority, expression]) => {
-      const regex = new RegExp(`${expression}[^0-9]{0,55}(${NUMBER_PATTERN})\\s*${AREA_UNIT}(?![\\p{L}\\d])`, "giu");
+      const regex = new RegExp(expression, "giu");
       for (const match of flat.matchAll(regex)) {
         const area = parsePtNumber(match[1]);
         if (!(area > 5 && area < 5000)) continue;
@@ -112,7 +114,7 @@
   function detectDocumentType(text) {
     const flat = cleanText(text).normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("pt-BR");
     const score = (patterns, weight) => patterns.reduce((total, pattern) => total + (pattern.test(flat) ? weight : 0), 0);
-    const iptu = score([/NOTIFICACAO DE LANCAMENTO/, /IMPOSTO PREDIAL/], 3) + score([/\bIPTU\b/, /NUMERO DO CONTRIBUINTE/, /VALOR VENAL/, /TIPO\s*\/\s*PADRAO/], 1);
+    const iptu = score([/NOTIFICACAO DE LANCAMENTO/, /IMPOSTO PREDIAL/, /CERTIDAO DE DADOS CADASTRAIS/], 3) + score([/\bIPTU\b/, /NUMERO DO CONTRIBUINTE/, /CADASTRO DO IMOVEL/, /VALOR VENAL/, /TIPO\s*\/\s*PADRAO/, /PADRAO DA CONSTRUCAO/], 1);
     const matricula = score([/REGISTRO DE IMOVEIS/, /\bMATRICULA\b/], 3) + score([/\bOFICIAL\b/, /AVERBACAO/, /\bAV\.\s*\d/], 1);
     return iptu > matricula ? "iptu" : "matricula";
   }
@@ -127,15 +129,29 @@
     const flat = cleanText(text).replace(/\s*\n\s*/g, " ")
       .replace(/\b(R|AV|AL|TV|PC|PÇ|EST|ROD|LGO|VLA)\s+(?=\p{L})/gu, (_, abbreviation) => `${IPTU_STREET_ABBREVIATIONS[abbreviation]} `);
     const first = (regex) => flat.match(regex)?.[1] ?? null;
-    const year = Number(first(/ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?[^0-9]{0,15}((?:19|20)\d{2})\b/iu));
+    const year = Number(first(/ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?[^0-9]{0,15}((?:19|20)\d{2})\b/iu)
+      || first(/((?:19|20)\d{2})\s*ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?/iu)); // camada de texto em colunas: valor antes do rótulo
     const pattern = flat.match(/(?:tipo\s*\/\s*padr[ãa]o|padr[ãa]o(?:\s+d[aeo]\s+constru[çc][ãa]o)?)[^0-9A-Z]{0,15}(\d)\s*[-–/ ]?\s*([A-E])\b/iu)
       || flat.match(/\btipo[^0-9]{0,6}(\d)[^A-Z]{0,25}padr[ãa]o[^A-Z]{0,6}([A-E])\b/iu);
-    // "Valor do m² do Terreno" ou "Valor Unitário do Terreno"; "Valor Venal do Terreno" (total) fica de fora.
-    const fiscal = parsePtNumber(first(new RegExp(`valor\\s+(?:unit[áa]rio\\s+(?:do\\s+m\\s*[²2]?\\s+)?|do\\s+m\\s*[²2]?\\s+)d[eo]\\s+terreno[^0-9]{0,20}(${NUMBER_PATTERN})`, "iu")));
+    // VM2T: carnê ("Valor do m² do Terreno"), certidão em ordem de leitura ("Valores de m² (R$): - de terreno: N") ou certidão
+    // com camada de texto embaralhada (valor colado antes de "- de terreno:"). No embaralhado só um valor na faixa plausível
+    // de VM2T (100–60.000 R$/m²) serve — os totais do bloco de cálculo ficam de fora. ponytail: heurística de faixa em vez
+    // de reconstruir as colunas; se a PGV mudar de ordem de grandeza, ajustar aqui.
+    const money = `(${NUMBER_PATTERN})`;
+    let fiscal = parsePtNumber(first(new RegExp(`valor\\s+(?:unit[áa]rio\\s+(?:do\\s+m\\s*[²2]?\\s+)?|do\\s+m\\s*[²2]?\\s+)d[eo]\\s+terreno[^0-9]{0,20}${money}`, "iu")))
+      || parsePtNumber(first(new RegExp(`valores\\s+de\\s+m\\s*[²2]?[^0-9]{0,60}?de\\s+terreno:?\\s*${money}`, "iu")));
+    if (!fiscal && /valores\s+de\s+m/iu.test(flat)) {
+      for (const match of flat.matchAll(new RegExp(`${money}\\s*-?\\s*de\\s+terreno:`, "giu"))) {
+        const value = parsePtNumber(match[1]);
+        if (value >= 100 && value <= 60000) { fiscal = value; break; }
+      }
+    }
     const cep = first(/\bCEP\b[^0-9]{0,6}(\d{5}-?\d{3})\b/iu) || first(/\b(\d{5}-\d{3})\b/u);
     const letterIndex = pattern ? "ABCDE".indexOf(pattern[2].toUpperCase()) : -1;
     return {
-      sql: first(/\b(\d{3}\.\d{3}\.\d{4}-\d)\b/u), // setor.quadra.lote-dígito, formato do cadastro imobiliário de SP
+      // setor.quadra.lote-dígito; sem \b no fim porque a camada de texto cola o rótulo seguinte ("…-3Cadastro do
+      // Imóvel:"); (?<![\d.]) evita casar o fim de um número maior
+      sql: first(/(?<![\d.])(\d{3}\.\d{3}\.\d{4}-\d)(?!\d)/u),
       yearBuilt: year >= 1900 && year <= new Date().getFullYear() + 1 ? year : null,
       patternCode: pattern && pattern[1] === "2" && letterIndex >= 0 ? 20 + letterIndex : null,
       patternLabel: pattern ? `${pattern[1]}-${pattern[2].toUpperCase()}` : null,
@@ -271,5 +287,12 @@
     return { type, ...fields, method, warning, fileName: file.name };
   }
 
-  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, parsePtNumber, read, resolveAssetUrl });
+  const isComplete = (type, fields) => Boolean(fields) && READERS[type].complete(fields); // a mesma regra que decide o OCR no site e no Worker
+  // Nenhum campo extraído (texto longo mas sem sentido: transcrição ruim, página em branco) também é ilegível —
+  // não pode virar uma "matrícula" ou "carnê" fantasma só porque passou do teto de caracteres.
+  const isEmpty = (type, fields) => {
+    const checks = READERS[type].missing(fields || {});
+    return checks.filter(Boolean).length === checks.length;
+  };
+  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, isComplete, isEmpty, parsePtNumber, read, resolveAssetUrl });
 }(typeof window !== "undefined" ? window : globalThis));

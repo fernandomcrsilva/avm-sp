@@ -3,12 +3,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CARNE, MATRICULA, MATRICULA_CASA } from "./fixtures/textos.mjs";
+import { scannedPdf } from "./fixtures/pdf.mjs";
 import { LIMITS, parseInbound, readDocuments, buildInputs, compose, processEmail } from "../src/email.js";
 import worker, { allowedSender } from "../src/worker.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
-export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [], extraHeaders = {} } = {}) {
+// related: [[nome, tipo, conteúdo, cid]] — vira UM multipart/related aninhado (corpo text/html com cid: + as
+// imagens inline), caso real de logotipo de assinatura embutido no HTML.
+export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [], extraHeaders = {}, related = [] } = {}) {
   const boundary = "fronteira-avm";
+  const relatedBoundary = "fronteira-related";
   // RFC 2047: assunto com acento chega decorado assim (é o que a plataforma manda de verdade).
   const subjectLine = /[^\x00-\x7f]/.test(subject) ? `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=` : subject;
   const parts = attachments.map(([name, type, content, disposition]) => [
@@ -17,33 +21,68 @@ export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do
     ...(disposition === "inline" ? ["Content-ID: <logo@x>"] : []),
     "Content-Transfer-Encoding: base64", "", Buffer.from(content).toString("base64"),
   ].join("\r\n"));
+  const relatedPart = related.length ? [[
+    `--${boundary}`, `Content-Type: multipart/related; boundary="${relatedBoundary}"`, "",
+    `--${relatedBoundary}`, "Content-Type: text/html; charset=utf-8", "",
+    `<html><body>${related.map(([, , , cid]) => `<img src="cid:${cid}">`).join("")}</body></html>`,
+    ...related.flatMap(([name, type, content, cid]) => [
+      `--${relatedBoundary}`, `Content-Type: ${type}; name="${name}"`,
+      `Content-Disposition: inline; filename="${name}"`, `Content-ID: <${cid}>`,
+      "Content-Transfer-Encoding: base64", "", Buffer.from(content).toString("base64"),
+    ]),
+    `--${relatedBoundary}--`,
+  ].join("\r\n")] : [];
   return [
     `From: Pessoa <${from}>`, "To: avm@heybrain.uk", `Subject: ${subjectLine}`, messageId ? `Message-ID: ${messageId}` : null,
     ...Object.entries(extraHeaders).map(([name, value]) => `${name}: ${value}`),
     "MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${boundary}"`, "",
     `--${boundary}`, "Content-Type: text/plain; charset=utf-8", "", "Seguem os documentos.",
-    ...parts, `--${boundary}--`, "",
+    ...relatedPart, ...parts, `--${boundary}--`, "",
   ].filter((line) => line !== null).join("\r\n");
 }
 
 const raw = (options) => new TextEncoder().encode(mime(options)).buffer;
 
-test("parseInbound: só PDFs entram; imagens (mesmo assinatura inline) e outros tipos vão para ignorados", async () => {
+test("parseInbound: PDFs e imagens entram; outros tipos vão para ignorados", async () => {
   const nomeLongo = `${"a".repeat(300)}.pdf`;
   const parsed = await parseInbound(raw({ attachments: [
     ["iptu.pdf", "application/pdf", "%PDF-1.4 carne"],
     ["matricula.PDF", "application/octet-stream", "%PDF-1.4 matricula"], // tipo genérico, extensão .pdf
-    ["foto.jpg", "image/jpeg", "jpeg"],
+    ["foto.jpg", "image/jpeg", "jpeg" + "x".repeat(25 * 1024)],
     ["planilha.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "x"],
-    ["image001.png", "image/png", "png", "inline"], // assinatura do Outlook
     [nomeLongo, "application/pdf", "%PDF-1.4 nome longo"],
   ] }));
   assert.equal(parsed.messageId, "<abc123@exemplo.gov.br>");
   assert.equal(parsed.subject, "Avaliação do apartamento");
-  assert.deepEqual(parsed.attachments.map((a) => [a.fileName, a.mimeType]), [["iptu.pdf", "application/pdf"], ["matricula.PDF", "application/pdf"], [nomeLongo.slice(0, 120), "application/pdf"]]);
+  assert.deepEqual(parsed.attachments.map((a) => [a.fileName, a.mimeType]), [["iptu.pdf", "application/pdf"], ["matricula.PDF", "application/pdf"], ["foto.jpg", "image/jpeg"], [nomeLongo.slice(0, 120), "application/pdf"]]);
   assert.ok(parsed.attachments[0].bytes instanceof Uint8Array && parsed.attachments[0].bytes.length > 0);
-  assert.deepEqual(parsed.ignored, ["foto.jpg", "planilha.xlsx", "image001.png"]);
-  assert.equal(parsed.attachments[2].fileName.length, 120); // truncado a 120
+  assert.deepEqual(parsed.ignored, ["planilha.xlsx"]);
+  assert.equal(parsed.attachments[3].fileName.length, 120); // truncado a 120
+});
+
+test("parseInbound: imagem PNG normal vai para attachments", async () => {
+  const parsed = await parseInbound(raw({ attachments: [["foto.png", "image/png", "png" + "x".repeat(25 * 1024)]] }));
+  assert.deepEqual(parsed.attachments.map((a) => [a.fileName, a.mimeType]), [["foto.png", "image/png"]]);
+  assert.deepEqual(parsed.ignored, []);
+});
+
+test("parseInbound: imagem abaixo de 20 KiB (assinatura) ou acima de 5 MiB vai para ignorados", async () => {
+  const parsed = await parseInbound(raw({ attachments: [
+    ["logo.png", "image/png", "x".repeat(2 * 1024)],
+    ["foto.jpg", "image/jpeg", "y".repeat(30 * 1024)],
+    ["gigante.jpg", "image/jpeg", "z".repeat(5 * 1024 * 1024 + 1)],
+  ] }));
+  assert.deepEqual(parsed.attachments.map((a) => a.fileName), ["foto.jpg"]);
+  assert.deepEqual(parsed.ignored, ["logo.png", "gigante.jpg"]);
+});
+
+test("parseInbound: imagem embutida no HTML (multipart/related, mesmo tamanho de um escaneado) vai para ignorados; a mesma imagem como anexo normal entra", async () => {
+  const imagem = "x".repeat(30 * 1024);
+  const comoRelated = await parseInbound(raw({ related: [["logo.png", "image/png", imagem, "logo@x"]] }));
+  assert.deepEqual(comoRelated.attachments, []);
+  assert.deepEqual(comoRelated.ignored, ["logo.png"]);
+  const comoAnexo = await parseInbound(raw({ attachments: [["logo.png", "image/png", imagem]] }));
+  assert.deepEqual(comoAnexo.attachments.map((a) => a.fileName), ["logo.png"]);
 });
 
 test("parseInbound: anexo acima do teto vai para ignorados; mais de 6 anexos, só os 6 primeiros", async () => {
@@ -92,9 +131,9 @@ test("readDocuments: texto curto é 'não lido'; só a matrícula → faltam os 
   assert.equal(docs.find((d) => d.fileName === "iptu.pdf").unreadable, true);
   const out = buildInputs(docs);
   assert.deepEqual(out.missing, [
-    "ano de construção (esperado no carnê de IPTU)",
-    "padrão cadastral (esperado no carnê de IPTU)",
-    "valor do m² do terreno (esperado no carnê de IPTU)",
+    "ano de construção (esperado no IPTU)",
+    "padrão cadastral (esperado no IPTU)",
+    "valor do m² do terreno (esperado no IPTU)",
   ]);
 });
 
@@ -142,9 +181,9 @@ test("compose: recusa, faltou, não lido e ambíguo", () => {
   assert.equal(refused.subject, "AVM SP — estimativa");
   assert.ok(norm(refused.text).includes("recusada porque o imóvel está fora do domínio do modelo") && norm(refused.text).includes("área privativa acima de 250 m²") && norm(refused.text).includes("Não há relatório."));
   const missing = compose("missing", { subject: "x", missing: ["área privativa (esperada na matrícula)"], unreadable: ["iptu.pdf"], ignored: [] });
-  assert.ok(norm(missing.text).includes("Faltou:") && norm(missing.text).includes("- área privativa (esperada na matrícula)") && norm(missing.text).includes("Não foi possível ler: iptu.pdf (sem camada de texto)") && norm(missing.text).includes("Reenvie com os documentos completos, em um único e-mail."));
+  assert.ok(norm(missing.text).includes("Faltou:") && norm(missing.text).includes("- área privativa (esperada na matrícula)") && norm(missing.text).includes("Não foi possível ler: iptu.pdf (sem texto legível)") && norm(missing.text).includes("Reenvie com os documentos completos, em um único e-mail."));
   const unreadable = compose("unreadable", { subject: "x", unreadable: ["a.pdf", "b.pdf"] });
-  assert.ok(norm(unreadable.text).includes("Não foi possível ler: a.pdf, b.pdf (sem camada de texto).") && norm(unreadable.text).includes("Envie o PDF original digital."));
+  assert.ok(norm(unreadable.text).includes("Não foi possível ler: a.pdf, b.pdf (sem texto legível).") && norm(unreadable.text).includes("Envie o PDF original digital."));
   const ambiguous = compose("ambiguous", { subject: "x", ambiguous: "matricula" });
   assert.ok(norm(ambiguous.text).includes("mais de uma matrícula") && norm(ambiguous.text).includes("Envie um imóvel por e-mail."));
   const notApartment = compose("refused", { subject: "x", reasons: [{ code: "apartment", text: "a matrícula não descreve um apartamento; o modelo cobre apenas apartamentos residenciais" }] });
@@ -203,7 +242,7 @@ test("processEmail: e-mail sem anexo → Faltou", async () => {
   const out = await processEmail({ raw: raw(), subject: "x" }, deps);
   assert.equal(out.outcome, "missing");
   assert.ok(out.reply.text.includes("nenhuma matrícula identificada entre os anexos"));
-  assert.ok(out.reply.text.includes("nenhum carnê de IPTU identificado entre os anexos"));
+  assert.ok(out.reply.text.includes("nenhum documento de IPTU identificado entre os anexos"));
   assert.deepEqual(out.reply.attachments, []);
 });
 
@@ -213,6 +252,80 @@ test("processEmail: fora do domínio → recusada com os textos do modelo", asyn
   assert.equal(out.outcome, "refused");
   assert.ok(out.reply.text.includes("fora do domínio do modelo"));
   assert.deepEqual(out.reply.attachments, []);
+});
+
+// OCR (Entrega 2): toMarkdown não vê texto no PDF escaneado; ai.run devolve a transcrição pelo nome do "documento".
+const OCR_TEXTS = { carne: CARNE, matricula: MATRICULA, ruido: "kj3h4 kjh34 kjh 3k4jh" };
+function aiComOcr(transcricao) {
+  const runs = [];
+  return {
+    runs,
+    toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: TEXTOS[doc.name] ?? "" })), // PDFs escaneados não estão em TEXTOS → ""
+    run: async (model, input) => { runs.push({ model, input }); return { choices: [{ message: { content: transcricao(runs.length) } }] }; }, // formato OpenAI do Gemma 4
+  };
+}
+const escaneado = (nome, pages = 1) => [nome, "application/pdf", scannedPdf({ pages })];
+
+test("OCR: carnê escaneado + matrícula digital → relatório com método OCR, aviso e ocr_pages", async () => {
+  const ai = aiComOcr(() => OCR_TEXTS.carne);
+  const out = await processEmail({ raw: raw({ attachments: [escaneado("iptu-scan.pdf"), ["matricula.pdf", "application/pdf", "%PDF-1.4 m"]] }), subject: "x" }, { ...deps, ai });
+  assert.equal(out.outcome, "report", out.reply.text);
+  assert.equal(ai.runs.length, 1);
+  assert.ok(norm(out.reply.text).includes("Documentos lidos: iptu-scan.pdf + matricula.pdf — OCR (Workers AI) e texto do PDF."));
+  assert.ok(out.reply.text.includes("obtida por OCR (Workers AI)"));
+  assert.deepEqual(out.log, { documents: 2, unreadable: 0, ocr_pages: 1 });
+});
+
+test("OCR: texto do PDF incompleto → OCR completa e o método vira 'texto do PDF + OCR (Workers AI)'", async () => {
+  // toMarkdown devolve só o cabeçalho do carnê (sem ano/padrão/VM2T); o OCR traz o resto.
+  const parcial = { ...TEXTOS, "iptu-parcial.pdf": CARNE.split("DADOS DO IMÓVEL")[0] + " ".repeat(200) };
+  const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: parcial[doc.name] ?? "" })), run: async () => ({ choices: [{ message: { content: CARNE } }] }) };
+  const out = await processEmail({ raw: raw({ attachments: [["iptu-parcial.pdf", "application/pdf", scannedPdf()], ["matricula.pdf", "application/pdf", "%PDF-1.4 m"]] }), subject: "x" }, { ...deps, ai });
+  assert.equal(out.outcome, "report", out.reply.text);
+  assert.ok(norm(out.reply.text).includes("texto do PDF + OCR (Workers AI)"));
+});
+
+test("OCR: imagem anexada (jpeg) é transcrita direto; ruído vira 'Faltou', nunca número inventado", async () => {
+  const ai = aiComOcr((n) => (n === 1 ? OCR_TEXTS.matricula : OCR_TEXTS.carne));
+  const ok = await processEmail({ raw: raw({ attachments: [["matricula.jpg", "image/jpeg", "\xff\xd8\xff\xe0" + "x".repeat(25 * 1024)], escaneado("iptu-scan.pdf")] }), subject: "x" }, { ...deps, ai });
+  assert.equal(ok.outcome, "report", ok.reply.text);
+  assert.equal(ok.log.ocr_pages, 2);
+  assert.ok(JSON.stringify(ai.runs[0].input).includes("data:image/jpeg;base64,"));
+  const ruim = await processEmail({ raw: raw({ attachments: [escaneado("iptu-scan.pdf"), ["matricula.pdf", "application/pdf", "%PDF-1.4 m"]] }), subject: "x" }, { ...deps, ai: aiComOcr(() => OCR_TEXTS.ruido) });
+  assert.equal(ruim.outcome, "missing");
+  assert.ok(ruim.reply.text.includes("ano de construção (esperado no IPTU)")); // brief dizia "esperado no carnê de IPTU"; texto real (Task 1b) é "esperado no IPTU"
+});
+
+test("OCR: transcrição longa e sem sentido não vira matrícula fantasma → Faltou, não ambíguo", async () => {
+  const ai = aiComOcr(() => "kj3h4 kjh34 ".repeat(60)); // ~720 caracteres, passa do teto de texto curto, mas sem nenhum campo
+  const out = await processEmail({ raw: raw({ attachments: [escaneado("iptu-scan.pdf"), ["matricula.pdf", "application/pdf", "%PDF-1.4 m"]] }), subject: "x" }, { ...deps, ai });
+  assert.equal(out.outcome, "missing", out.reply.text);
+  assert.ok(out.reply.text.includes("nenhum documento de IPTU identificado entre os anexos"));
+  assert.ok(out.reply.text.includes("Não foi possível ler: iptu-scan.pdf (sem texto legível)"));
+  assert.equal(out.log.unreadable, 1);
+});
+
+test("OCR: teto de 8 páginas por e-mail e 4 por documento", async () => {
+  const ai = aiComOcr(() => OCR_TEXTS.ruido);
+  const out = await processEmail({ raw: raw({ attachments: [escaneado("a.pdf", 6), escaneado("b.pdf", 6), escaneado("c.pdf", 6)] }), subject: "x" }, { ...deps, ai });
+  assert.equal(ai.runs.length, 8); // 4 + 4 + 0
+  assert.equal(out.log.ocr_pages, 8);
+});
+
+test("OCR: falha do modelo também consome o orçamento — nunca mais de 8 chamadas por e-mail", async () => {
+  let calls = 0;
+  const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: "" })), run: async () => { calls += 1; throw new Error("modelo indisponível"); } };
+  const out = await processEmail({ raw: raw({ attachments: [escaneado("a.pdf", 6), escaneado("b.pdf", 6), escaneado("c.pdf", 6)] }), subject: "x" }, { ...deps, ai });
+  assert.equal(calls, 8); // 4 + 4 + 0, mesmo sem nenhuma transcrição bem-sucedida
+  assert.equal(out.log.ocr_pages, 8);
+  assert.equal(out.outcome, "unreadable");
+});
+
+test("OCR: sem imagem nenhuma no PDF → continua 'não lido', sem chamar o modelo", async () => {
+  const ai = aiComOcr(() => OCR_TEXTS.carne);
+  const out = await processEmail({ raw: raw({ attachments: [["vazio.pdf", "application/pdf", "%PDF-1.4 sem imagem"]] }), subject: "x" }, { ...deps, ai });
+  assert.equal(out.outcome, "unreadable");
+  assert.equal(ai.runs.length, 0);
 });
 
 test("allowedSender: domínio exato ou endereço exato, sem diferenciar maiúsculas", () => {
