@@ -68,6 +68,10 @@ export default {
     const started = Date.now();
     const log = (event, extra) => console.log(JSON.stringify({ event, ...extra, ms: Date.now() - started })); // nunca endereço, arquivo ou valores
     if (!allowedSender(message.from, env.ALLOWED_SENDERS)) { message.setReject("Remetente não autorizado para o AVM SP."); return log("email_rejected", { reason: "unauthorized" }); }
+    // RFC 3834: não responder a mensagens automáticas — evita laço com respondedores; descartar em silêncio, sem bounce.
+    const auto = (message.headers.get("auto-submitted") || "no").toLowerCase();
+    const precedence = (message.headers.get("precedence") || "").toLowerCase();
+    if (auto !== "no" || ["bulk", "list", "junk"].includes(precedence)) return log("email_dropped", { reason: "auto_submitted" });
     const { success } = await env.EMAIL_RL.limit({ key: String(message.from).toLowerCase() });
     if (!success) { message.setReject("Limite de envios atingido; aguarde um minuto."); return log("email_rejected", { reason: "ratelimit" }); }
     if (message.rawSize > MAX_RAW_BYTES) { message.setReject("Mensagem grande demais (máximo 20 MB)."); return log("email_rejected", { reason: "too_large" }); }
@@ -84,6 +88,12 @@ export default {
     }
 
     const messageId = message.headers.get("message-id") || result.messageId;
+    // Máximo de 512 para o cabeçalho de conversa (o limite da plataforma é 2048 por valor; aqui é bem mais
+    // conservador — um Message-ID real não chega perto disso). Longo demais: responde sem ele, nunca falha o envio.
+    const headers = {
+      "X-Auto-Response-Suppress": "All", // Microsoft: evita que o Outlook do destinatário dispare fora-do-escritório de volta
+      ...(messageId && messageId.length <= 512 ? { "In-Reply-To": messageId, References: messageId } : {}),
+    };
     try {
       await env.EMAIL.send({
         to: message.from,
@@ -91,7 +101,7 @@ export default {
         subject: result.reply.subject,
         text: result.reply.text,
         html: result.reply.html,
-        ...(messageId ? { headers: { "In-Reply-To": messageId, References: messageId } } : {}),
+        headers,
         ...(result.reply.attachments.length ? { attachments: result.reply.attachments } : {}),
       });
     } catch (error) {

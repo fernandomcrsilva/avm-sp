@@ -312,13 +312,42 @@ test("email(): caminho feliz → um send com Excel, na mesma conversa, e log sem
 test("email(): sem Message-ID não manda cabeçalhos de conversa; send falha → setReject", async () => {
   const { env, sent } = ambiente();
   await worker.email(mensagem({ messageId: null }), env, {});
-  assert.equal(sent.at(-1).headers, undefined);
+  assert.equal(sent.at(-1).headers["In-Reply-To"], undefined);
+  assert.equal(sent.at(-1).headers["X-Auto-Response-Suppress"], "All");
   const falho = ambiente({ sendFails: true });
   const msg = mensagem();
   await worker.email(msg, falho.env, {});
   assert.match(msg.rejected, /Falha temporária/);
   assert.equal(logs.at(-1).event, "email_send_failed");
   assert.equal(logs.at(-1).error, "Error");
+});
+
+test("email(): mensagem automática (Auto-Submitted) é descartada sem resposta e sem bounce", async () => {
+  const { env, sent } = ambiente();
+  const msg = mensagem({ extraHeaders: { "auto-submitted": "auto-replied" } });
+  await worker.email(msg, env, {});
+  assert.equal(msg.rejected, null);
+  assert.equal(sent.length, 0);
+  assert.deepEqual(logs.at(-1), { event: "email_dropped", reason: "auto_submitted", ms: logs.at(-1).ms });
+});
+
+test("email(): mensagem em lista (Precedence: bulk) é descartada sem resposta e sem bounce", async () => {
+  const { env, sent } = ambiente();
+  const msg = mensagem({ extraHeaders: { precedence: "bulk" } });
+  await worker.email(msg, env, {});
+  assert.equal(msg.rejected, null);
+  assert.equal(sent.length, 0);
+  assert.equal(logs.at(-1).event, "email_dropped");
+  assert.equal(logs.at(-1).reason, "auto_submitted");
+});
+
+test("email(): Message-ID longo demais → responde sem cabeçalhos de conversa", async () => {
+  const { env, sent } = ambiente();
+  const messageId = "<" + "a".repeat(600) + "@exemplo.gov.br>";
+  await worker.email(mensagem({ messageId }), env, {});
+  assert.equal(sent.length, 1);
+  assert.equal(sent.at(-1).headers["In-Reply-To"], undefined);
+  assert.equal(sent.at(-1).headers["X-Auto-Response-Suppress"], "All");
 });
 
 test("email(): erro inesperado no processamento → setReject, sem send, log só com o nome do erro", async () => {
