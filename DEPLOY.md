@@ -7,8 +7,8 @@
   conta nem cookie.
 - **Onde**: Cloudflare Workers Static Assets, Worker `avm-sp`, conta HeyBrain!, Custom Domain `avm.heybrain.uk`.
   Preview em `*.avm-sp.heybrain.workers.dev` com `X-Robots-Tag: noindex`.
-- **Como publica**: PR → CI (`check`) → merge → preview da `main` (`wrangler versions upload`) → tag `v*` → `versions deploy`.
-  Rollback = `versions deploy <anterior>@100%`. Detalhes no [RUNBOOK.md](RUNBOOK.md).
+- **Como publica**: PR → CI (`check`) → merge em `main` → Cloudflare Workers Builds (`npm run build` + `npx wrangler deploy`) → produção.
+  Rollback = `versions deploy <anterior>@100%` ou `wrangler rollback`. Detalhes no [RUNBOOK.md](RUNBOOK.md).
 
 ## Arquitetura
 
@@ -48,7 +48,8 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 | Sem Cloudflare Web Analytics | Beacon de terceiro incompatível com a CSP fechada e com "sem dependência de CDN". Métricas de requisição do Worker bastam. |
 | Worker mínimo só para `/api/erro` | Sem backend de predição, mas o prompt pede captura de erro de front. `run_worker_first` só em `/api/*`; assets e `_headers` intactos. Payload sem dado do imóvel. |
 | Uptime por GitHub Actions | Health Checks da Cloudflare só a partir do Pro. Cron de 30 min em `/version.json`. |
-| Branch `main` protegida com `check` obrigatório, inclusive para admins | Todo código entra por PR; produção só por tag. Sem deploy da máquina como caminho normal. |
+| Branch `main` protegida com `check` obrigatório, inclusive para admins | Todo código entra por PR, e é o merge em `main` que publica. Sem deploy da máquina como caminho normal. |
+| Build e deploy no Cloudflare Workers Builds, não no GitHub Actions | O repositório está ligado ao Worker: cada push em `main` roda `npm run build` e `npx wrangler deploy`. O CI fica só com o `check` e não guarda token da Cloudflare. Em troca, produção sai a cada merge — o portão é o PR. |
 | Matrículas de teste fora do git | 20 PDFs reais com CPF/RG de terceiros; LGPD. `testes/` ignorado. |
 
 ## Segurança e privacidade

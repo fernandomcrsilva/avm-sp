@@ -13,32 +13,30 @@ npx wrangler versions list                      # versões enviadas (com tag/men
 
 ## Publicar
 
-Caminho normal: **pull request → preview → merge → tag**. Nada sai da máquina local para produção.
+Caminho normal: **pull request → check verde → merge em `main`**. O merge publica: o Cloudflare Workers Builds
+está ligado ao repositório e roda `npm run build` + `npx wrangler deploy` a cada push em `main`.
+Nada sai da máquina local para produção.
 
 1. Branch + PR para `main`. O CI (`.github/workflows/ci.yml`, job `check`) roda build, lint, validador do `model.json`,
-   paridade Python↔JS, limites e orçamento de tamanho. O PR não tem acesso ao token da Cloudflare.
-2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push). O push em `main` roda o job
-   `preview`: `wrangler versions upload` e a URL `https://<id>-avm-sp.heybrain.workers.dev` no resumo do run
-   (Actions → ci → o run do merge → Summary). Produção não muda; confira o preview antes da tag.
-3. Produção: crie e envie uma tag `vX.Y.Z` (ou dispare o workflow manualmente em Actions → ci → Run workflow, só em `main`).
-   O job `deploy` recusa tag fora do formato `vX.Y.Z` e commit que não esteja em `main`; depois faz
-   `versions upload --tag vX.Y.Z` e `versions deploy <id>@100%`, espera a propagação (~1 min)
-   e confere que `/version.json` traz o SHA do commit.
+   paridade Python↔JS, limites e orçamento de tamanho. É o único portão: depois do merge, vai para o ar.
+2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push).
+3. Acompanhe o build em Cloudflare → Workers & Pages → `avm-sp` → Deployments (etapas Initializing, Cloning,
+   Installing, Building, Deploying). Leva ~35 s.
+4. Confira o que está no ar:
 
 ```bash
-git tag v1.0.0 && git push origin v1.0.0
+curl -s https://avm.heybrain.uk/version.json   # git_sha deve ser o do merge
 ```
 
-Segredo necessário: `CLOUDFLARE_API_TOKEN` como **environment secret** de `production` (Settings → Environments → production),
-cujos *deployment branches and tags* são `main` e `v*`. Os jobs `preview` e `deploy` usam `environment: production`; o job `check`
-(o único que roda em PR) não vê o token. No CI ele só existe no `env:` dos passos do wrangler; o build e o `npm ci --ignore-scripts` rodam sem ele.
-Não deixe cópia em Settings → Secrets and variables → Actions.
-Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit** (+ Account Settings → Read), restrito à conta HeyBrain!,
-validade de 1 ano: **rotacionar até 2027-09-07** (criar novo, `gh secret set CLOUDFLARE_API_TOKEN`, revogar o antigo).
-Nunca commitar o token; nunca colar em log.
+O `wrangler deploy` do Workers Builds aplica também os **triggers** (rota, Custom Domain, cron), ao contrário do
+antigo `versions deploy`.
 
-Mudanças em **triggers** (rota, Custom Domain, cron) não entram por `versions deploy`: rode `npx wrangler triggers deploy`
-(ou `npx wrangler deploy`) uma vez, localmente, com autorização explícita. Foi assim que `avm.heybrain.uk` foi criado.
+O CI não tem mais acesso à Cloudflare: os jobs `preview` e `deploy` saíram do workflow em 2026-09-08, junto com o
+uso do `CLOUDFLARE_API_TOKEN`. O environment secret `production` ficou sem uso — revogue o token na Cloudflare e
+remova o secret quando confirmar que nada mais depende dele. O build da Cloudflare usa a própria credencial da conta.
+
+Versionamento: as tags `vX.Y.Z` deixaram de disparar deploy. Continuam úteis para marcar releases no histórico,
+se você quiser, mas não são mais o caminho de produção.
 
 ## Reverter
 
@@ -53,7 +51,7 @@ curl -s https://avm.heybrain.uk/version.json    # confirme git_sha/model_version
 Testado em 2026-09-07: `versions deploy dd6e835c@100%` → `/version.json` voltou ao SHA anterior em ~75 s; `versions deploy f27111ae@100%` restaurou a v1.0.0.
 
 Atalho equivalente: `npx wrangler rollback` (interativo; escolhe uma implantação anterior). Depois de reverter,
-corrija em PR e publique por tag normalmente. Não há banco nem estado: reverter o Worker reverte tudo.
+corrija em PR: o merge em `main` publica de novo. Não há banco nem estado: reverter o Worker reverte tudo.
 
 Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, depois ajuste os percentuais.
 
@@ -76,8 +74,8 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
    a fixture do scikit-learn com o sha256 do `model.json`: um `model.json` editado à mão, ou uma fixture "formula" de
    `scripts/parity_fixture.py`, reprova no CI (VULN-004). O sha256 vai para `/version.json` e para `/metodologia`.
 5. `npm run check` (validador com faixas sãs, paridade 1e-9, build). Se o validador reprovar métricas, não publique.
-6. Confira `/metodologia` no preview: períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
-7. PR → preview → merge → tag. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.
+6. Confira `/metodologia` localmente (`python3 -m http.server --directory site`): períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
+7. PR → check verde → merge: o merge publica. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.
 
 ## Atualizar o vendor (pdf.js, tesseract.js, core WASM, idioma)
 
