@@ -7,21 +7,27 @@ import "../site/assets/report.js";
 import "../site/assets/matricula-reader.js";
 import "../site/assets/xlsx-export.js";
 import model from "../site/assets/model.json" with { type: "json" };
+import { ocrDocument } from "./ocr.js";
 
 export const LIMITS = Object.freeze({
   maxAttachments: 6,
   maxAttachmentBytes: 10 * 1024 * 1024,
   minTextChars: 200,     // abaixo disso o PDF é tratado como sem camada de texto
   maxTextChars: 200_000, // teto do texto extraído por documento
+  maxOcrPagesPerDoc: 4,      // como o site (MAX_OCR_PAGES)
+  maxOcrPagesPerEmail: 8,    // spec 5.4: ≤ 8 chamadas ao modelo por e-mail
+  maxImageBytes: 5 * 1024 * 1024,
+  maxPngBytes: 4 * 1024 * 1024,
 });
 
 const PDF_TYPE = "application/pdf";
-// imagens: Entrega 2 (OCR)
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]); // fotos e escaneados avulsos: vão direto ao OCR
 
 function attachmentType(att) {
   const name = String(att.filename || "").toLocaleLowerCase("pt-BR");
   const type = String(att.mimeType || "").toLocaleLowerCase("pt-BR").split(";")[0].trim();
   if (type === PDF_TYPE || name.endsWith(".pdf")) return PDF_TYPE;
+  if (IMAGE_TYPES.has(type)) return type;
   return null;
 }
 
@@ -53,6 +59,13 @@ export function formatCep(value) {
   return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : "";
 }
 
+// Mais de um documento legível do mesmo tipo é ambíguo (matrícula tem prioridade sobre carnê).
+export function ambiguityOf(docs) {
+  const readable = docs.filter((d) => !d.unreadable);
+  return readable.filter((d) => d.type === "matricula").length > 1 ? "matricula"
+    : readable.filter((d) => d.type === "iptu").length > 1 ? "iptu" : null;
+}
+
 // Cada texto vira um documento classificado (carnê ou matrícula) com os campos que o leitor do site extrai.
 // Texto curto = PDF sem camada de texto (na Entrega 2 é o gatilho do OCR). Dois do mesmo tipo = ambíguo.
 export function readDocuments(texts) {
@@ -64,10 +77,7 @@ export function readDocuments(texts) {
     const fields = unreadable ? null : (type === "iptu" ? extractIptuFields(clean) : extractFields(clean));
     return { fileName, type, method, fields, unreadable, apartment: type === "matricula" && /\bapartamento\b/iu.test(clean) };
   });
-  const readable = docs.filter((d) => !d.unreadable);
-  const ambiguous = readable.filter((d) => d.type === "matricula").length > 1 ? "matricula"
-    : readable.filter((d) => d.type === "iptu").length > 1 ? "iptu" : null;
-  return { docs, ambiguous };
+  return { docs, ambiguous: ambiguityOf(docs) };
 }
 
 // Monta o mesmo objeto que getInputs() monta no site. Matrícula manda no endereço e na área; carnê nas
@@ -148,7 +158,7 @@ function render(subject, blocks) {
 }
 
 const list = (items) => items.map((item) => `- ${item}`).join("\n");
-const unreadableLine = (files) => (files.length ? `Não foi possível ler: ${files.join(", ")} (sem camada de texto).` : null);
+const unreadableLine = (files) => (files.length ? `Não foi possível ler: ${files.join(", ")} (sem texto legível).` : null);
 const ignoredLine = (files) => (files.length ? `Ignorados: ${files.join(", ")}.` : null);
 
 // Monta os textos da resposta (assunto, texto puro e HTML) a partir do relatório ou do motivo de não haver um.
@@ -189,11 +199,12 @@ const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const USER_AGENT = "AVM-SP/1 (avm@heybrain.uk)"; // política de uso do Nominatim: identificar a aplicação
 
-// Texto de cada PDF pelo serviço de conversão do Workers AI (sem biblioteca de PDF no Worker).
+// Texto de cada PDF pelo serviço de conversão do Workers AI (sem biblioteca de PDF no Worker). Imagens não têm
+// camada de texto: seguem direto para o OCR (ocrPass), guardando os bytes já aqui.
 async function extractTexts(ai, attachments) {
   const texts = [];
   for (const att of attachments) {
-    // parseInbound só deixa passar PDF (imagens: Entrega 2, ver PDF_TYPE acima); nada mais chega aqui.
+    if (att.mimeType !== PDF_TYPE) { texts.push({ fileName: att.fileName, text: "", method: "imagem", bytes: att.bytes, mimeType: att.mimeType }); continue; }
     let text = "";
     try {
       const [result] = await ai.toMarkdown(
@@ -204,10 +215,34 @@ async function extractTexts(ai, attachments) {
     } catch (_) {
       text = ""; // serviço indisponível ou PDF corrompido: vira "não lido"
     }
-    texts.push({ fileName: att.fileName, text, method: "texto do PDF" });
+    texts.push({ fileName: att.fileName, text, method: "texto do PDF", bytes: att.bytes, mimeType: PDF_TYPE });
   }
   return texts;
 }
+
+// Segunda passada: documento ilegível ou incompleto ganha a transcrição das páginas (OCR) e é reclassificado.
+// O modelo só produz texto; os campos continuam vindo dos extratores. Orçamento: 4 páginas por documento, 8 por e-mail.
+export async function ocrPass(ai, texts, docs, log) {
+  if (typeof ai?.run !== "function") return docs; // sem binding de visão (fakes da Entrega 1, ou deploy sem AI): passa os docs como vieram
+  const { isComplete } = globalThis.AVMMatricula;
+  let budget = LIMITS.maxOcrPagesPerEmail;
+  const out = [...docs];
+  for (let i = 0; i < docs.length && budget > 0; i += 1) {
+    const doc = docs[i];
+    const source = texts[i];
+    if (!doc.unreadable && isComplete(doc.type, doc.fields)) continue;
+    if (!source.bytes) continue;
+    const { text, pages } = await ocrDocument(ai, { bytes: source.bytes, mimeType: source.mimeType }, { maxPages: Math.min(LIMITS.maxOcrPagesPerDoc, budget), maxPngBytes: LIMITS.maxPngBytes, maxImageBytes: LIMITS.maxImageBytes });
+    budget -= pages;
+    log.ocr_pages += pages;
+    if (!text) continue;
+    const merged = source.text.trim() ? `${source.text}\n${text}` : text;
+    const method = source.text.trim() && source.method === "texto do PDF" ? "texto do PDF + OCR (Workers AI)" : "OCR (Workers AI)";
+    [out[i]] = readDocuments([{ fileName: doc.fileName, text: merged, method }]).docs;
+  }
+  return out;
+}
+// (ocrDocument já paraleliza as páginas de um documento; documentos são processados em sequência para respeitar o orçamento.)
 
 // Uma consulta, só para o bairro; o CEP do documento prevalece (mesma regra do site). Falha → sem bairro.
 async function lookupDistrict(fetchFn, v) {
@@ -229,9 +264,12 @@ export async function processEmail({ raw, subject }, deps) {
   const now = deps.now || new Date();
   const inbound = await parseInbound(raw);
   const texts = await extractTexts(deps.ai, inbound.attachments);
-  const { docs, ambiguous } = readDocuments(texts);
+  const log = { documents: texts.length, unreadable: 0, ocr_pages: 0 };
+  const first = readDocuments(texts);
+  const docs = await ocrPass(deps.ai, texts, first.docs, log);
+  const ambiguous = ambiguityOf(docs);
   const unreadable = docs.filter((d) => d.unreadable).map((d) => d.fileName);
-  const log = { documents: docs.length, unreadable: unreadable.length, ocr_pages: 0 };
+  log.unreadable = unreadable.length;
   const finish = (outcome, reply) => ({ outcome, reply: { ...reply, attachments: reply.attachments || [] }, messageId: inbound.messageId, log });
   const base = { subject: subject ?? inbound.subject, unreadable, ignored: inbound.ignored };
 
