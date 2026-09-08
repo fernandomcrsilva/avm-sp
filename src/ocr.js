@@ -44,8 +44,8 @@ async function deflate(bytes) {
 // Reduz por fator inteiro (média de bloco) e converte a cinza (luminância); devolve PNG tipo de cor 0, 8 bits, filtro 0.
 export async function encodePng({ data, width, height, channels }, maxSide = 1600) {
   const factor = Math.max(1, Math.ceil(Math.max(width, height) / maxSide));
-  const outWidth = Math.floor(width / factor);
-  const outHeight = Math.floor(height / factor);
+  const outWidth = Math.max(1, Math.floor(width / factor));
+  const outHeight = Math.max(1, Math.floor(height / factor));
   const gray = (index) => {
     if (channels === 1) return data[index];
     const at = index * channels;
@@ -101,7 +101,9 @@ function composePage(found) {
 export async function pageImages(pdfBytes, maxPages = 4, transform = async (image) => image) {
   let pdf;
   try {
-    pdf = await getDocumentProxy(new Uint8Array(pdfBytes));
+    // teto de 12 Mpx por imagem (A4 a 300 dpi ≈ 8,7 Mpx passa; 600 dpi é descartada pelo pdf.js e a página vira
+    // "sem texto legível") — o isolate tem 128 MB e 12 Mpx × 4 canais = 48 MB
+    pdf = await getDocumentProxy(new Uint8Array(pdfBytes), { maxImageSize: 12e6 });
   } catch (_) {
     return [];
   }

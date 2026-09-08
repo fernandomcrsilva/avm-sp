@@ -58,6 +58,12 @@ test("encodePng: cinza 8 bits, filtro 0, IDAT inflado com o tamanho certo, sem r
   }
 });
 
+test("encodePng: dimensões nunca viram 0 (imagem já mais estreita/baixa que o fator de redução)", async () => {
+  const png = await encodePng({ data: new Uint8Array(3200), width: 3200, height: 1, channels: 1 }, 1600);
+  const chunks = parsePng(png);
+  assert.equal(be32(chunks[0].data, 4), 1); // altura do IHDR
+});
+
 test("encodePng: RGB e RGBA viram cinza pela luminância", async () => {
   const rgb = await encodePng({ data: Uint8Array.from([255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255]), width: 4, height: 1, channels: 3 });
   const rgba = await encodePng({ data: Uint8Array.from([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]), width: 4, height: 1, channels: 4 });
@@ -105,6 +111,13 @@ test("pageImages: página escaneada em faixas é remontada de cima para baixo", 
 
 test("pageImages: PDF inválido → lista vazia, sem lançar", async () => {
   assert.deepEqual(await pageImages(new TextEncoder().encode("%PDF-1.4 lixo")), []);
+});
+
+test("pageImages: teto de 12 Mpx — página de 16 Mpx é descartada pelo pdf.js, 4 Mpx passa", async () => {
+  const out = await pageImages(scannedPdf({ width: 4000, height: 4000 }));
+  assert.ok(out.length === 0 || out[0].data.length === 0, `esperado [] ou imagem vazia, veio: ${JSON.stringify(out.map((i) => ({ width: i.width, height: i.height, len: i.data?.length })))}`);
+  const ok = await pageImages(scannedPdf({ width: 2000, height: 2000 }));
+  assert.equal(ok.length, 1);
 });
 
 test("pageImages: destrói o documento ao terminar (segunda leitura dos mesmos bytes continua funcionando)", async () => {
