@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getDocumentProxy } from "unpdf";
-import { crc32, toBase64, encodePng, pageImages } from "../src/ocr.js";
+import { crc32, toBase64, encodePng, pageImages, ocrPayload, transcribe, ocrDocument, OCR_MODEL } from "../src/ocr.js";
 import { scannedPdf } from "./fixtures/pdf.mjs";
 
 const be32 = (bytes, at) => ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0;
@@ -122,4 +122,54 @@ test("loadingTask.destroy() existe no proxy do unpdf e pode ser chamado após a 
   await pdf.loadingTask.destroy();
   // Nesta build do unpdf, pdf.getPage(1) após destroy() lança SINCRONAMENTE (TypeError: Cannot read properties of
   // null (reading 'sendWithPromise')), não devolve uma promise rejeitada — por isso não há assert.rejects aqui.
+});
+
+// O Gemma 4 pelo binding responde no formato OpenAI (spike da Task 1): o texto está em choices[0].message.content.
+const respostaModelo = (text) => ({ choices: [{ finish_reason: "stop", index: 0, message: { role: "assistant", content: text } }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
+function aiFalso(text = "Ano da Construção Corrigido: 2018") {
+  const calls = [];
+  return { calls, run: async (model, input) => { calls.push({ model, input }); return respostaModelo(text); } };
+}
+
+test("transcribe aceita também o formato { response } da reserva Llama", async () => {
+  const ai = { run: async () => ({ response: "texto llama" }) };
+  assert.equal(await transcribe(ai, { bytes: Uint8Array.of(1), mimeType: "image/png" }), "texto llama");
+});
+
+test("transcribe: manda a imagem como data URI no formato escolhido no spike e devolve o texto", async () => {
+  const ai = aiFalso();
+  const text = await transcribe(ai, { bytes: Uint8Array.of(137, 80, 78, 71), mimeType: "image/png" });
+  assert.equal(text, "Ano da Construção Corrigido: 2018");
+  assert.equal(ai.calls.length, 1);
+  assert.equal(ai.calls[0].model, OCR_MODEL);
+  assert.equal(JSON.stringify(ai.calls[0].input).includes("data:image/png;base64,iVBORw=="), true);
+  assert.equal(JSON.stringify(ai.calls[0].input).includes("Transcreva"), true);
+});
+
+test("ocrDocument: PDF escaneado de 3 páginas → uma transcrição por página, em paralelo, até maxPages", async () => {
+  const ai = aiFalso("linha");
+  const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 3 }), mimeType: "application/pdf" }, { maxPages: 2 });
+  assert.equal(out.pages, 2);
+  assert.equal(ai.calls.length, 2);
+  assert.equal(out.text, "linha\nlinha");
+  for (const call of ai.calls) assert.equal(JSON.stringify(call.input).includes("data:image/png;base64,"), true);
+});
+
+test("ocrDocument: imagem anexada vai direto ao modelo, sem recodificar; acima do teto → vazio", async () => {
+  const ai = aiFalso("texto da foto");
+  const jpeg = Uint8Array.of(255, 216, 255, 224);
+  const out = await ocrDocument(ai, { bytes: jpeg, mimeType: "image/jpeg" }, {});
+  assert.deepEqual(out, { text: "texto da foto", pages: 1 });
+  assert.equal(JSON.stringify(ai.calls[0].input).includes("data:image/jpeg;base64,/9j/4A=="), true);
+  const grande = await ocrDocument(aiFalso(), { bytes: new Uint8Array(5 * 1024 * 1024 + 1), mimeType: "image/jpeg" }, {});
+  assert.deepEqual(grande, { text: "", pages: 0 });
+});
+
+test("ocrDocument: falha do modelo numa página não derruba as outras; PDF sem imagem → vazio", async () => {
+  let n = 0;
+  const ai = { run: async () => { n += 1; if (n === 1) throw new Error("modelo indisponível"); return { response: `p${n}` }; } };
+  const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 2 }), mimeType: "application/pdf" }, {});
+  assert.equal(out.pages, 1);
+  assert.equal(out.text, "p2");
+  assert.deepEqual(await ocrDocument(aiFalso(), { bytes: new TextEncoder().encode("%PDF-1.4 lixo"), mimeType: "application/pdf" }, {}), { text: "", pages: 0 });
 });
