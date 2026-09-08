@@ -16,9 +16,10 @@ npx wrangler versions list                      # versões enviadas (com tag/men
 Caminho normal: **pull request → preview → merge → tag**. Nada sai da máquina local para produção.
 
 1. Branch + PR para `main`. O CI (`.github/workflows/ci.yml`, job `check`) roda build, lint, validador do `model.json`,
-   paridade Python↔JS, limites e orçamento de tamanho. O job `preview` publica uma versão com
-   `wrangler versions upload` e comenta a URL `https://<id>-avm-sp.heybrain.workers.dev` no PR. Produção não muda.
-2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push).
+   paridade Python↔JS, limites e orçamento de tamanho. O PR não tem acesso ao token da Cloudflare.
+2. Merge em `main` (só com `check` verde; a branch não aceita push direto nem force-push). O push em `main` roda o job
+   `preview`: `wrangler versions upload` e a URL `https://<id>-avm-sp.heybrain.workers.dev` no resumo do run
+   (Actions → ci → o run do merge → Summary). Produção não muda; confira o preview antes da tag.
 3. Produção: crie e envie uma tag `vX.Y.Z` (ou dispare o workflow manualmente em Actions → ci → Run workflow, só em `main`).
    O job `deploy` recusa tag fora do formato `vX.Y.Z` e commit que não esteja em `main`; depois faz
    `versions upload --tag vX.Y.Z` e `versions deploy <id>@100%`, espera a propagação (~1 min)
@@ -28,8 +29,10 @@ Caminho normal: **pull request → preview → merge → tag**. Nada sai da máq
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-Segredo necessário: `CLOUDFLARE_API_TOKEN` (Settings → Environments → production → Environment secrets; até a migração,
-Settings → Secrets and variables → Actions). No CI ele só existe no `env:` dos passos do wrangler; o build e o `npm ci --ignore-scripts` rodam sem ele.
+Segredo necessário: `CLOUDFLARE_API_TOKEN` como **environment secret** de `production` (Settings → Environments → production),
+cujos *deployment branches and tags* são `main` e `v*`. Os jobs `preview` e `deploy` usam `environment: production`; o job `check`
+(o único que roda em PR) não vê o token. No CI ele só existe no `env:` dos passos do wrangler; o build e o `npm ci --ignore-scripts` rodam sem ele.
+Não deixe cópia em Settings → Secrets and variables → Actions.
 Token criado no dashboard da Cloudflare com permissão **Account → Workers Scripts → Edit** (+ Account Settings → Read), restrito à conta HeyBrain!,
 validade de 1 ano: **rotacionar até 2027-09-07** (criar novo, `gh secret set CLOUDFLARE_API_TOKEN`, revogar o antigo).
 Nunca commitar o token; nunca colar em log.
