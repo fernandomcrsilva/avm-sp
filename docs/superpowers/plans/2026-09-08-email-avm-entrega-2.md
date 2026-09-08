@@ -142,6 +142,180 @@ Parar o preview; remover a entrada `ocr-spike` de `.claude/launch.json` (`git di
 
 ---
 
+### Task 1b: Calibrar os extratores com os documentos reais (Certidão de Dados Cadastrais e variantes de matrícula)
+
+**Files:**
+- Modify: `site/assets/matricula-reader.js` (`detectDocumentType`, `extractArea`, `extractIptuFields`)
+- Modify: `tests/fixtures/textos.mjs` (fixtures novas, sem dados pessoais)
+- Modify: `tests/iptu-reader.test.mjs`
+- Modify: `src/email.js` (`buildInputs`: "carnê de IPTU" → "IPTU") e `tests/email.test.mjs` (as mesmas strings)
+
+**Por quê:** os 10 casos reais mostraram que o documento de IPTU que circula em laudos é a **Certidão de Dados Cadastrais do Imóvel** (portal da PMSP), não o carnê: SQL em "Cadastro do Imóvel:", ano em "Ano da construção corrigido:", padrão em "Padrão da construção: 2-C", VM2T em "Valores de m² (R$): – da área incorporada: N". Na camada de texto do PDF as colunas saem embaralhadas e o valor vem colado **antes** do rótulo ("2022Ano da construção corrigido:", "122.004.0918-3Cadastro do Imóvel:"). Nas matrículas apareceram "41,06 m2 de área privativa" (valor antes) e "área de uso privativo de 118,73 m²". Sem isto, a E2 transcreveria certo e ainda responderia "Faltou".
+
+**Interfaces:** as mesmas de hoje (`detectDocumentType(text)`, `extractFields(text)`, `extractIptuFields(text)`); só o alcance muda.
+
+- [ ] **Step 1: Fixtures**
+
+Acrescentar a `tests/fixtures/textos.mjs` (valores inventados; layout copiado do documento real):
+
+```js
+// Certidão de Dados Cadastrais do Imóvel (portal da PMSP) em ordem de leitura — é o que o OCR devolve.
+export const CERTIDAO = `
+PREFEITURA DE SÃO PAULO
+Certidão de Dados Cadastrais do Imóvel - IPTU 2024
+Cadastro do Imóvel: 123.456.0789-0
+Local do Imóvel: R VERGUEIRO, 2650 AP 81   VILA MARIANA   CEP 04109-002
+Dados cadastrais do terreno:
+Área incorporada (m²): 1.200   Área não incorporada (m²): 0   Área total (m²): 1.200
+Testada (m): 25,00   Fração ideal: 0,0250
+Dados cadastrais da construção:
+Área construída (m²): 98   Área ocupada pela construção (m²): 600
+Ano da construção corrigido: 2018
+Padrão da construção: 2-C   Uso: residência
+Valores de m² (R$):
+- da área incorporada: 6.500,00
+- da área não incorporada: 0,00
+- da construção: 2.361,00
+Valores para fins de cálculo do IPTU (R$):
+- da área incorporada: 195.000,00
+- da área não incorporada: 0,00
+- da construção: 231.378,00
+`;
+
+// A mesma certidão como a camada de texto do PDF a devolve: colunas embaralhadas e valor colado antes do rótulo.
+export const CERTIDAO_EMBARALHADA = `
+2.361,00- da construção:
+Certidão de Dados Cadastrais do Imóvel - IPTU 2024
+Valores de m² (R$):
+123.456.0789-0Cadastro do Imóvel:
+231.378,00- da construção:
+0,00- da área não incorporada:
+195.000,00- da área incorporada:
+6.500,00- da área incorporada:
+Dados cadastrais da construção:
+Área construída (m²): Padrão da construção: 2-C
+2018Ano da construção corrigido:
+Local do Imóvel: R VERGUEIRO, 2650 AP 81 CEP 04109-002
+`;
+```
+
+- [ ] **Step 2: Testes que falham**
+
+Acrescentar a `tests/iptu-reader.test.mjs` (importar `CERTIDAO, CERTIDAO_EMBARALHADA` do fixture):
+
+```js
+test("certidão de dados cadastrais em ordem de leitura: SQL, ano, padrão e VM2T", () => {
+  assert.equal(AVMMatricula.detectDocumentType(CERTIDAO), "iptu");
+  const f = AVMMatricula.extractIptuFields(CERTIDAO);
+  assert.equal(f.sql, "123.456.0789-0");
+  assert.equal(f.yearBuilt, 2018);
+  assert.equal(f.patternCode, 22);
+  assert.equal(f.fiscal, 6500); // "Valores de m²" → "da área incorporada"; os 195.000 do bloco de cálculo não entram
+  assert.equal(f.cep, "04109-002");
+  assert.equal(f.address, "Rua Vergueiro, 2650");
+});
+
+test("certidão com camada de texto embaralhada: valor antes do rótulo, SQL colado, VM2T pela faixa plausível", () => {
+  assert.equal(AVMMatricula.detectDocumentType(CERTIDAO_EMBARALHADA), "iptu");
+  const f = AVMMatricula.extractIptuFields(CERTIDAO_EMBARALHADA);
+  assert.equal(f.sql, "123.456.0789-0");
+  assert.equal(f.yearBuilt, 2018);
+  assert.equal(f.patternCode, 22);
+  assert.equal(f.fiscal, 6500);
+});
+
+test("legenda 'Certidão de Dados Cadastrais do Imóvel' sozinha classifica como IPTU", () => {
+  assert.equal(AVMMatricula.detectDocumentType("Figura 2 - Certidão de Dados Cadastrais do Imóvel"), "iptu");
+});
+
+test("matrícula: área privativa antes do rótulo, 'área de uso privativo' e rótulo com dois-pontos", () => {
+  assert.equal(AVMMatricula.extractFields("consta na matrícula de 41,06 m2 de área privativa.").area, 41.06);
+  assert.equal(AVMMatricula.extractFields("área de uso privativo de 118,73 m², área de uso comum de 35,89 m²").area, 118.73);
+  assert.equal(AVMMatricula.extractFields("Área Privativa : 26,549 m² Área Comum : 10,910 m²").area, 26.549);
+});
+```
+
+Em `tests/email.test.mjs`, trocar nas asserções as strings `"(esperado no carnê de IPTU)"` por `"(esperado no IPTU)"` e `"nenhum carnê de IPTU identificado entre os anexos"` por `"nenhum documento de IPTU identificado entre os anexos"` (todas as ocorrências).
+
+- [ ] **Step 3: Rodar e ver falhar**
+
+Run: `node --test tests/iptu-reader.test.mjs tests/email.test.mjs`
+Expected: FAIL nos 4 testes novos (tipo "matricula", campos `null`) e nas strings de "Faltou".
+
+- [ ] **Step 4: `site/assets/matricula-reader.js`**
+
+a) `detectDocumentType` — marcadores da certidão:
+```js
+    const iptu = score([/NOTIFICACAO DE LANCAMENTO/, /IMPOSTO PREDIAL/, /CERTIDAO DE DADOS CADASTRAIS/], 3) + score([/\bIPTU\b/, /NUMERO DO CONTRIBUINTE/, /CADASTRO DO IMOVEL/, /VALOR VENAL/, /TIPO\s*\/\s*PADRAO/, /PADRAO DA CONSTRUCAO/], 1);
+```
+
+b) `extractArea` — rótulo antes **ou** depois do valor, e "uso privativo":
+```js
+    const label = "(?:(?:área\\s+)?(?:real\\s+)?privativa(?:\\s+(?:total|coberta|principal|da\\s+unidade))?|área\\s+de\\s+uso\\s+privativo)";
+    const definitions = [
+      ["Área privativa", 50, `${label}[^0-9]{0,55}(${NUMBER_PATTERN})\\s*${AREA_UNIT}(?![\\p{L}\\d])`],          // "área privativa de 78,00 m²"
+      ["Área privativa", 50, `(${NUMBER_PATTERN})\\s*${AREA_UNIT}\\s+de\\s+${label}(?![\\p{L}])`],                  // "41,06 m2 de área privativa"
+    ];
+    const candidates = [];
+    definitions.forEach(([label, priority, expression]) => {
+      const regex = new RegExp(expression, "giu");
+      ...
+```
+(o corpo do `forEach` continua igual: o número está sempre no grupo 1.)
+
+c) `extractIptuFields` — certidão:
+```js
+    const year = Number(first(/ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?[^0-9]{0,15}((?:19|20)\d{2})\b/iu)
+      || first(/((?:19|20)\d{2})\s*ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?/iu)); // camada de texto em colunas: valor antes do rótulo
+```
+```js
+    // VM2T: carnê ("Valor do m² do Terreno"), certidão em ordem de leitura ("Valores de m² … da área incorporada") ou
+    // certidão embaralhada (valor colado antes de "- da área incorporada:"); neste último caso só um valor na faixa
+    // plausível de VM2T (100–60.000 R$/m²) serve — os totais do bloco de cálculo ficam de fora. ponytail: heurística
+    // de faixa em vez de reconstruir as colunas; se a PGV mudar de ordem de grandeza, ajustar aqui.
+    const money = `(${NUMBER_PATTERN})`;
+    let fiscal = parsePtNumber(first(new RegExp(`valor\\s+(?:unit[áa]rio\\s+(?:do\\s+m\\s*[²2]?\\s+)?|do\\s+m\\s*[²2]?\\s+)d[eo]\\s+terreno[^0-9]{0,20}${money}`, "iu")))
+      || parsePtNumber(first(new RegExp(`valores\\s+de\\s+m\\s*[²2]?[\\s\\S]{0,160}?da\\s+[áa]rea\\s+incorporada:?\\s*${money}`, "iu")));
+    if (!fiscal && /valores\s+de\s+m/iu.test(flat)) {
+      for (const match of flat.matchAll(new RegExp(`${money}\\s*-?\\s*da\\s+[áa]rea\\s+incorporada:`, "giu"))) {
+        const value = parsePtNumber(match[1]);
+        if (value >= 100 && value <= 60000) { fiscal = value; break; }
+      }
+    }
+```
+e o SQL sem exigir fronteira depois do dígito verificador (vem colado no rótulo na camada de texto):
+```js
+      sql: first(/(\d{3}\.\d{3}\.\d{4}-\d)(?!\d)/u),
+```
+Conferir que `CARNE` (E1) continua passando: o regex A é tentado primeiro.
+
+- [ ] **Step 5: `src/email.js` — mensagens**
+
+Em `buildInputs`, trocar `"(esperado no carnê de IPTU)"` por `"(esperado no IPTU)"` nas três mensagens e `"nenhum carnê de IPTU identificado entre os anexos"` por `"nenhum documento de IPTU identificado entre os anexos"`.
+
+- [ ] **Step 6: Rodar tudo**
+
+Run: `npm run check`
+Expected: verde — 48 testes (44 + 4). Se o teste da certidão embaralhada falhar no VM2T com `195000`, a faixa não está sendo aplicada (o regex B pode ter casado "Valores de m²" seguido, 160 caracteres adiante, do "195.000,00- da área incorporada:"); nesse caso restringir o regex B a exigir `-\s*da\s+área\s+incorporada:?\s*${money}` **imediatamente** após um número **não** — ou seja, trocar `[\s\S]{0,160}?` por `[^0-9]{0,160}?` (nenhum dígito entre o rótulo "Valores de m²" e o valor).
+
+- [ ] **Step 7: Conferir contra os documentos reais (controlador)**
+
+Rodar o script de calibração (Node carregando `matricula-reader.js` sobre `testes/documentos_10_apartamentos/split/*.txt` e `testes/…/ocr_10_iptu.txt`): esperado — `ocr_10_iptu.txt` classificado `iptu` com SQL, ano 1973, padrão 2-C; `06_iptu.txt` com SQL e ano 2022 e padrão 2-C (VM2T pode continuar `null` na camada de texto embaralhada real — o OCR da E2 resolve); `04_matricula.txt` com área 41,06; `09_matricula.txt` com área 118,73. Registrar o resultado no ledger.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add site/assets/matricula-reader.js tests/fixtures/textos.mjs tests/iptu-reader.test.mjs src/email.js tests/email.test.mjs
+git commit -m "Leitores: Certidão de Dados Cadastrais do IPTU (SQL, ano, padrão, VM2T por 'Valores de m²') e variantes de área privativa
+
+Calibrado com 10 casos reais (testes/, fora do git): valor antes do rótulo, SQL colado, colunas embaralhadas
+na camada de texto, 'área de uso privativo'. Mensagens de 'Faltou' falam em IPTU (carnê ou certidão).
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+```
+
+---
+
 ### Task 2: `src/ocr.js` — PNG cinza sem biblioteca e imagens das páginas (`unpdf`)
 
 **Files:**
@@ -176,20 +350,28 @@ function concat(parts) {
   return out;
 }
 
-export function scannedPdf({ width = 8, height = 8, pages = 1 } = {}) {
+// strips > 1 divide a página em faixas horizontais (uma imagem por faixa, desenhadas de cima para baixo), como os
+// escaneados "em tiras" do caso real 01 (12 imagens de 764×85 por página).
+export function scannedPdf({ width = 8, height = 8, pages = 1, strips = 1 } = {}) {
   const pixels = new Uint8Array(width * height);
   for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) pixels[y * width + x] = Math.round((x * 255) / Math.max(1, width - 1));
+  const stripHeight = height / strips; // o teste usa altura divisível
   const objects = []; // Uint8Array por objeto, na ordem 1..n
   const pageIds = [];
   objects.push(latin1("<< /Type /Catalog /Pages 2 0 R >>"));
   objects.push(null); // 2: Pages, preenchido depois
   for (let p = 0; p < pages; p += 1) {
-    const pageId = objects.length + 1, contentId = pageId + 1, imageId = pageId + 2;
+    const pageId = objects.length + 1, contentId = pageId + 1, firstImageId = pageId + 2;
     pageIds.push(pageId);
-    objects.push(latin1(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources << /XObject << /Im0 ${imageId} 0 R >> >> >>`));
-    const content = `q ${width} 0 0 ${height} 0 0 cm /Im0 Do Q`;
+    const xobjects = Array.from({ length: strips }, (_, s) => `/Im${s} ${firstImageId + s} 0 R`).join(" ");
+    objects.push(latin1(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources << /XObject << ${xobjects} >> >> >>`));
+    // de cima para baixo: a faixa s ocupa y de (height - (s+1)·stripHeight) a (height - s·stripHeight)
+    const content = Array.from({ length: strips }, (_, s) => `q ${width} 0 0 ${stripHeight} 0 ${height - (s + 1) * stripHeight} cm /Im${s} Do Q`).join(" ");
     objects.push(concat([latin1(`<< /Length ${content.length} >>\nstream\n`), latin1(content), latin1("\nendstream")]));
-    objects.push(concat([latin1(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ${pixels.length} >>\nstream\n`), pixels, latin1("\nendstream")]));
+    for (let s = 0; s < strips; s += 1) {
+      const slice = pixels.subarray(s * stripHeight * width, (s + 1) * stripHeight * width);
+      objects.push(concat([latin1(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${stripHeight} /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ${slice.length} >>\nstream\n`), slice, latin1("\nendstream")]));
+    }
   }
   objects[1] = latin1(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages} >>`);
   const parts = [latin1("%PDF-1.4\n")];
@@ -292,16 +474,27 @@ test("encodePng: reduz por fator inteiro até o lado maior caber em maxSide (mé
   assert.equal(raw[1], 150);
 });
 
+// pdf.js entrega DeviceGray 8 bits expandido (RGB ou RGBA); o gradiente é conferido pelo primeiro canal de cada pixel.
+const firstChannelRow = (image, row = 0) => Array.from({ length: image.width }, (_, x) => image.data[(row * image.width + x) * image.channels]);
+const GRADIENTE_8 = [0, 36, 73, 109, 146, 182, 219, 255];
+
 test("pageImages: devolve a imagem embutida de cada página, no máximo maxPages", async () => {
   const one = await pageImages(scannedPdf({ width: 8, height: 8 }));
   assert.equal(one.length, 1);
   assert.equal(one[0].width, 8);
   assert.equal(one[0].height, 8);
-  assert.equal(one[0].channels, 1);
+  assert.ok([1, 3, 4].includes(one[0].channels), `canais: ${one[0].channels}`);
   assert.equal(one[0].page, 1);
-  assert.deepEqual([...one[0].data.slice(0, 8)], [0, 36, 73, 109, 146, 182, 219, 255]);
+  assert.deepEqual(firstChannelRow(one[0]), GRADIENTE_8);
   const three = await pageImages(scannedPdf({ pages: 3 }), 2);
   assert.deepEqual(three.map((i) => i.page), [1, 2]);
+});
+
+test("pageImages: página escaneada em faixas é remontada de cima para baixo", async () => {
+  const [page] = await pageImages(scannedPdf({ width: 8, height: 8, strips: 4 }));
+  assert.equal(page.width, 8);
+  assert.equal(page.height, 8); // 4 faixas de 2 linhas empilhadas
+  for (const row of [0, 3, 7]) assert.deepEqual(firstChannelRow(page, row), GRADIENTE_8);
 });
 
 test("pageImages: PDF inválido → lista vazia, sem lançar", async () => {
@@ -394,8 +587,28 @@ export async function encodePng({ data, width, height, channels }, maxSide = 160
   return png;
 }
 
-// Uma imagem por página — a maior, que num escaneado é a página inteira. Páginas sem imagem são puladas;
-// PDF inválido devolve lista vazia (o chamador trata como "não lido").
+// Página escaneada "em faixas" (várias imagens da mesma largura, caso real 01): empilha na ordem dos operadores,
+// que é de cima para baixo. Caso contrário, a maior imagem é a página.
+function composePage(found) {
+  const usable = found.filter((image) => image.data && image.width > 0 && image.height > 0);
+  if (!usable.length) return null;
+  const [first] = usable;
+  if (usable.length > 1 && usable.every((image) => image.width === first.width && image.channels === first.channels)) {
+    const height = usable.reduce((total, image) => total + image.height, 0);
+    const data = new Uint8Array(first.width * height * first.channels);
+    let offset = 0;
+    for (const image of usable) {
+      const length = image.width * image.height * image.channels;
+      data.set(image.data.subarray(0, length), offset);
+      offset += length;
+    }
+    return { data, width: first.width, height, channels: first.channels };
+  }
+  return usable.reduce((best, image) => (!best || image.width * image.height > best.width * best.height ? image : best), null);
+}
+
+// Uma imagem por página. Páginas sem imagem são puladas; PDF inválido devolve lista vazia (o chamador trata
+// como "não lido").
 export async function pageImages(pdfBytes, maxPages = 4) {
   let pdf;
   try {
@@ -407,9 +620,8 @@ export async function pageImages(pdfBytes, maxPages = 4) {
   const pageCount = Math.min(pdf.numPages, maxPages);
   for (let page = 1; page <= pageCount; page += 1) {
     try {
-      const found = await extractImages(pdf, page);
-      const largest = found.reduce((best, image) => (!best || image.width * image.height > best.width * best.height ? image : best), null);
-      if (largest) images.push({ data: largest.data, width: largest.width, height: largest.height, channels: largest.channels, page });
+      const composed = composePage(await extractImages(pdf, page));
+      if (composed) images.push({ ...composed, page });
     } catch (_) { /* página com imagem que o pdf.js não decodifica (ex.: JPX): pulada */ }
   }
   return images;
@@ -419,7 +631,7 @@ export async function pageImages(pdfBytes, maxPages = 4) {
 - [ ] **Step 6: Rodar e ver passar**
 
 Run: `node --test tests/ocr.test.mjs`
-Expected: 7 pass. Se `pageImages` devolver `channels` diferente de 1 para o fixture, o `unpdf` está calculando `data.length / (width*height)` — conferir se o `data` veio como RGB expandido; o teste é a referência e o fixture é `DeviceGray`, então ajustar **só se** o valor devolvido pelo unpdf for 3 e o conteúdo for o gradiente repetido (nesse caso, converter no `pageImages`: manter como veio e deixar `encodePng` tratar — e mudar a asserção de `channels` para aceitar 1 ou 3, anotando no relatório).
+Expected: 8 pass. O pdf.js entrega o `DeviceGray` de 8 bits expandido para RGB ou RGBA (`channels` 3 ou 4); os testes já aceitam 1, 3 ou 4 e conferem o gradiente pelo primeiro canal. `encodePng` converte qualquer canal para cinza.
 
 - [ ] **Step 7: Lint e bundle**
 
@@ -452,10 +664,17 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 Acrescentar em `tests/ocr.test.mjs` (import também `ocrPayload, transcribe, ocrDocument, OCR_MODEL`):
 
 ```js
+// O Gemma 4 pelo binding responde no formato OpenAI (spike da Task 1): o texto está em choices[0].message.content.
+const respostaModelo = (text) => ({ choices: [{ finish_reason: "stop", index: 0, message: { role: "assistant", content: text } }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
 function aiFalso(text = "Ano da Construção Corrigido: 2018") {
   const calls = [];
-  return { calls, run: async (model, input) => { calls.push({ model, input }); return { response: text }; } };
+  return { calls, run: async (model, input) => { calls.push({ model, input }); return respostaModelo(text); } };
 }
+
+test("transcribe aceita também o formato { response } da reserva Llama", async () => {
+  const ai = { run: async () => ({ response: "texto llama" }) };
+  assert.equal(await transcribe(ai, { bytes: Uint8Array.of(1), mimeType: "image/png" }), "texto llama");
+});
 
 test("transcribe: manda a imagem como data URI no formato escolhido no spike e devolve o texto", async () => {
   const ai = aiFalso();
@@ -506,7 +725,10 @@ Expected: FAIL — `transcribe`/`ocrDocument`/`OCR_MODEL` não exportados.
 Acrescentar ao fim de `src/ocr.js`. **Escolher o bloco `ocrPayload` conforme o spike** (o comentário registra a decisão; apagar as variantes não usadas):
 
 ```js
-// Decisão do spike (Task 1, <data>): modelo <…>, payload <a|b|llama>, campo de texto <response|…>, ~<ms> ms por página.
+// Decisão do spike (Task 1, 2026-09-08): Gemma 4 com a imagem como parte `image_url` da mensagem (variante a) transcreveu
+// corretamente o PNG sintético (3,5 s) e uma certidão real escaneada de 617×838 (8,5 s); a resposta vem no formato OpenAI
+// (`choices[0].message.content`). `image` na raiz (variante b) fez o modelo ignorar a imagem. Reserva: Llama 3.2 Vision
+// (`{ messages, image }`, texto em `response`, 11 s) — funciona, sem licença pendente.
 export const OCR_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 export const OCR_PROMPT = "Você é um OCR. Transcreva fielmente todo o texto da imagem, em português, preservando rótulos, números, pontuação e a ordem de leitura. Não resuma, não explique, não invente.";
 const USER_PROMPT = "Transcreva esta página.";
@@ -532,7 +754,8 @@ export function ocrPayload(dataUri) {
 //   return { messages: [{ role: "system", content: OCR_PROMPT }, { role: "user", content: USER_PROMPT }], image: dataUri, max_tokens: 4096 };
 // }
 
-const responseText = (result) => (typeof result === "string" ? result : String(result?.response ?? result?.result ?? result?.description ?? ""));
+// Gemma 4 responde no formato OpenAI (choices[0].message.content); a reserva Llama, em `response`.
+const responseText = (result) => (typeof result === "string" ? result : String(result?.choices?.[0]?.message?.content ?? result?.response ?? result?.result ?? result?.description ?? ""));
 
 export async function transcribe(ai, { bytes, mimeType }) {
   const result = await ai.run(OCR_MODEL, ocrPayload(`data:${mimeType};base64,${toBase64(bytes)}`));
@@ -563,7 +786,7 @@ export async function ocrDocument(ai, { bytes, mimeType }, { maxPages = 4, maxPn
 - [ ] **Step 4: Rodar e ver passar**
 
 Run: `node --test tests/ocr.test.mjs`
-Expected: 11 pass.
+Expected: 13 pass (8 da parte 1 + 5).
 
 - [ ] **Step 5: Commit**
 
@@ -610,7 +833,7 @@ function aiComOcr(transcricao) {
   return {
     runs,
     toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: TEXTOS[doc.name] ?? "" })), // PDFs escaneados não estão em TEXTOS → ""
-    run: async (model, input) => { runs.push({ model, input }); return { response: transcricao(runs.length) }; },
+    run: async (model, input) => { runs.push({ model, input }); return { choices: [{ message: { content: transcricao(runs.length) } }] }; }, // formato OpenAI do Gemma 4
   };
 }
 const escaneado = (nome, pages = 1) => [nome, "application/pdf", scannedPdf({ pages })];
@@ -628,7 +851,7 @@ test("OCR: carnê escaneado + matrícula digital → relatório com método OCR,
 test("OCR: texto do PDF incompleto → OCR completa e o método vira 'texto do PDF + OCR (Workers AI)'", async () => {
   // toMarkdown devolve só o cabeçalho do carnê (sem ano/padrão/VM2T); o OCR traz o resto.
   const parcial = { ...TEXTOS, "iptu-parcial.pdf": CARNE.split("DADOS DO IMÓVEL")[0] + " ".repeat(200) };
-  const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: parcial[doc.name] ?? "" })), run: async () => ({ response: CARNE }) };
+  const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: parcial[doc.name] ?? "" })), run: async () => ({ choices: [{ message: { content: CARNE } }] }) };
   const out = await processEmail({ raw: raw({ attachments: [["iptu-parcial.pdf", "application/pdf", scannedPdf()], ["matricula.pdf", "application/pdf", "%PDF-1.4 m"]] }), subject: "x" }, { ...deps, ai });
   assert.equal(out.outcome, "report", out.reply.text);
   assert.ok(norm(out.reply.text).includes("texto do PDF + OCR (Workers AI)"));
