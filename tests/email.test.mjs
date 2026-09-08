@@ -92,9 +92,9 @@ test("readDocuments: texto curto é 'não lido'; só a matrícula → faltam os 
   assert.equal(docs.find((d) => d.fileName === "iptu.pdf").unreadable, true);
   const out = buildInputs(docs);
   assert.deepEqual(out.missing, [
-    "ano de construção (esperado no carnê de IPTU)",
-    "padrão cadastral (esperado no carnê de IPTU)",
-    "valor do m² do terreno (esperado no carnê de IPTU)",
+    "ano de construção (esperado no IPTU)",
+    "padrão cadastral (esperado no IPTU)",
+    "valor do m² do terreno (esperado no IPTU)",
   ]);
 });
 
@@ -203,7 +203,7 @@ test("processEmail: e-mail sem anexo → Faltou", async () => {
   const out = await processEmail({ raw: raw(), subject: "x" }, deps);
   assert.equal(out.outcome, "missing");
   assert.ok(out.reply.text.includes("nenhuma matrícula identificada entre os anexos"));
-  assert.ok(out.reply.text.includes("nenhum carnê de IPTU identificado entre os anexos"));
+  assert.ok(out.reply.text.includes("nenhum documento de IPTU identificado entre os anexos"));
   assert.deepEqual(out.reply.attachments, []);
 });
 

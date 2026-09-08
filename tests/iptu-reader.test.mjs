@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { CARNE, MATRICULA } from "./fixtures/textos.mjs";
+import { CARNE, MATRICULA, CERTIDAO, CERTIDAO_EMBARALHADA } from "./fixtures/textos.mjs";
 
 const root = new URL("../", import.meta.url);
 vm.runInThisContext(readFileSync(new URL("site/assets/matricula-reader.js", root), "utf8"));
@@ -60,4 +60,34 @@ test("valores fora do plausível são descartados", () => {
   assert.equal(fields.yearBuilt, null);
   assert.equal(fields.patternCode, null);
   assert.equal(fields.fiscal, null);
+});
+
+test("certidão de dados cadastrais em ordem de leitura: SQL, ano, padrão e VM2T", () => {
+  assert.equal(AVMMatricula.detectDocumentType(CERTIDAO), "iptu");
+  const f = AVMMatricula.extractIptuFields(CERTIDAO);
+  assert.equal(f.sql, "123.456.0789-0");
+  assert.equal(f.yearBuilt, 2018);
+  assert.equal(f.patternCode, 22);
+  assert.equal(f.fiscal, 6500); // "Valores de m²" → "da área incorporada"; os 195.000 do bloco de cálculo não entram
+  assert.equal(f.cep, "04109-002");
+  assert.equal(f.address, "Rua Vergueiro, 2650");
+});
+
+test("certidão com camada de texto embaralhada: valor antes do rótulo, SQL colado, VM2T pela faixa plausível", () => {
+  assert.equal(AVMMatricula.detectDocumentType(CERTIDAO_EMBARALHADA), "iptu");
+  const f = AVMMatricula.extractIptuFields(CERTIDAO_EMBARALHADA);
+  assert.equal(f.sql, "123.456.0789-0");
+  assert.equal(f.yearBuilt, 2018);
+  assert.equal(f.patternCode, 22);
+  assert.equal(f.fiscal, 6500);
+});
+
+test("legenda 'Certidão de Dados Cadastrais do Imóvel' sozinha classifica como IPTU", () => {
+  assert.equal(AVMMatricula.detectDocumentType("Figura 2 - Certidão de Dados Cadastrais do Imóvel"), "iptu");
+});
+
+test("matrícula: área privativa antes do rótulo, 'área de uso privativo' e rótulo com dois-pontos", () => {
+  assert.equal(AVMMatricula.extractFields("consta na matrícula de 41,06 m2 de área privativa.").area, 41.06);
+  assert.equal(AVMMatricula.extractFields("área de uso privativo de 118,73 m², área de uso comum de 35,89 m²").area, 118.73);
+  assert.equal(AVMMatricula.extractFields("Área Privativa : 26,549 m² Área Comum : 10,910 m²").area, 26.549);
 });
