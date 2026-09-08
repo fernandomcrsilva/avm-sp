@@ -56,7 +56,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 
 Cabeçalhos em toda resposta de asset (`site/_headers`): CSP fechada, `nosniff`, `Referrer-Policy`,
 `Permissions-Policy`, COOP e CORP. HSTS de 180 dias na zona e também em `_headers` (sem preload). Sem cookies, sem
-`localStorage`, sem analytics. Dados do imóvel e matrícula ficam no navegador; o endereço sai ao ser preenchido ou alterado, para o Nominatim, e nada mais.
+`localStorage`, sem analytics. Dados do imóvel, matrícula e carnê de IPTU ficam no navegador; o endereço sai ao ser preenchido ou alterado, para o Nominatim, e nada mais.
 
 ## Custo
 
