@@ -247,6 +247,11 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .page-prose ul { color: #4f6573; font-size: .9rem; padding-left: 20px; }
 .page-prose li + li { margin-top: 8px; }
 .page-prose a { color: var(--cyan-dark); }
+.manual-download { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 22px; }
+.manual-download small { color: var(--muted); font-size: .74rem; }
+.page-viewer { max-width: 1000px; }
+.manual-frame { display: block; width: 100%; height: min(84vh, 1180px); border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.manual-note { margin: 10px 2px 0; color: var(--muted); font-size: .74rem; }
 
 @media (max-width: 1100px) {
   .app-header { grid-template-columns: auto 1fr; }

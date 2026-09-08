@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Manual de utilização — AVM SP</title>
+<style>
+/* Fonte do PDF do manual (scripts/render-manual.sh → site/manual-avm-sp-v7.pdf).
+   Geometria e paleta medidas do documento original: A4, margens 54pt, header 40pt,
+   DejaVu Sans, #17324d / #245b78 / #1d7a78 / #c56a18 / texto #25313c. */
+:root {
+  --azul: #17324d; --azul2: #245b78; --teal: #1d7a78; --laranja: #dfa15c;
+  --laranja-escuro: #c56a18; --texto: #25313c; --linha: #d7e0e6;
+  --box-teal: #eaf5f4; --box-azul: #eef4f8; --box-laranja: #fff4e5; --zebra: #f7f9fb;
+}
+@page {
+  size: A4; margin: 72pt 54pt 58pt;
+  /* Faixa do topo com 40pt, sangrando até as bordas da folha: os cantos cobrem as margens laterais
+     e a caixa central, com width 100%, cobre o resto. Só @top-center recebe conteúdo — @top-left e
+     @top-right não são geradas e não disputam espaço. O gradiente limita a faixa aos 40pt do
+     original, já que a margem superior é maior que ela. */
+  @top-left-corner { content: ""; background: linear-gradient(var(--azul) 40pt, rgba(255,255,255,0) 40pt); }
+  @top-center { content: "AVM SP\00a0\00a0|\00a0\00a0Manual de utilização"; width: 100%; text-align: left;
+                background: linear-gradient(var(--azul) 40pt, rgba(255,255,255,0) 40pt);
+                color: #fff; font: bold 9pt "DejaVu Sans"; vertical-align: top; padding-top: 14pt; }
+  @top-right-corner { content: ""; background: linear-gradient(var(--azul) 40pt, rgba(255,255,255,0) 40pt); }
+  /* Rodapé: as duas metades formam a linha contínua sobre a largura do conteúdo. */
+  @bottom-left { content: "Versão 7\00a0\00a0|\00a0\00a0Setembro de 2026"; width: 50%; border-top: 0.75pt solid var(--linha);
+                 color: #6f777f; font: 7.5pt "DejaVu Sans"; padding-top: 6pt; vertical-align: top; }
+  @bottom-right { content: "Página " counter(page); width: 50%; border-top: 0.75pt solid var(--linha);
+                  color: #6f777f; font: 7.5pt "DejaVu Sans"; padding-top: 6pt; vertical-align: top; text-align: right; }
+}
+@page cover { margin: 0; background: var(--azul);
+  @top-center { content: none; background: none; }
+  @top-left-corner { content: none; background: none; } @top-right-corner { content: none; background: none; }
+  @bottom-left { content: none; border: 0; } @bottom-right { content: none; border: 0; }
+}
+body { margin: 0; font: 9.5pt/14pt "DejaVu Sans"; color: var(--texto); }
+h1 { margin: 0 0 10pt; color: var(--azul2); font-size: 19pt; line-height: 24pt; }
+h2 { margin: 20pt 0 8pt; color: var(--azul2); font-size: 12.5pt; }
+p { margin: 0 0 9pt; }
+a { color: var(--azul2); text-decoration: none; }
+ul { margin: 0 0 9pt; padding-left: 14pt; }
+li { margin-bottom: 5pt; }
+section { page-break-before: always; }
+
+/* Capa */
+.cover { page: cover; page-break-before: avoid; position: relative; width: 596pt; height: 842pt;
+         color: #fff; overflow: hidden; }
+.cover .circle-teal { position: absolute; left: 425pt; top: -40pt; width: 214pt; height: 214pt;
+                      border-radius: 50%; background: var(--teal); }
+.cover .circle-blue { position: absolute; left: 425pt; top: 632pt; width: 270pt; height: 270pt;
+                      border-radius: 50%; background: var(--azul2); }
+.cover .bar { position: absolute; left: 54pt; top: 87pt; width: 121pt; height: 7pt; background: var(--laranja); }
+.cover .badge { position: absolute; left: 168pt; top: 244pt; width: 258pt; height: 22pt; background: var(--teal);
+                text-align: center; font: bold 8pt/22pt "DejaVu Sans"; letter-spacing: 0.8pt; }
+.cover .title { position: absolute; left: 60pt; top: 292pt; margin: 0; font-size: 34pt; line-height: 40pt; color: #fff; }
+.cover .subtitle { position: absolute; left: 60pt; top: 331pt; width: 470pt; font-size: 11.5pt; line-height: 18pt; color: #dfe8ef; }
+.cover .rule { position: absolute; left: 60pt; top: 420pt; width: 225pt; border-top: 0.75pt solid #7f97ab; }
+.cover .meta { position: absolute; left: 60pt; top: 434pt; font-size: 10.5pt; line-height: 26pt; color: #dfe8ef; }
+.cover .foot { position: absolute; left: 60pt; top: 790pt; font-size: 7.5pt; color: #88a7b9; }
+
+/* Caixas de destaque */
+.box { margin: 12pt 0; padding: 10pt 12pt; border-left: 3pt solid var(--teal); background: var(--box-teal); }
+.box strong { display: block; margin-bottom: 5pt; font-size: 9.5pt; }
+.box p:last-child { margin-bottom: 0; }
+.box.laranja { border-left-color: var(--laranja-escuro); background: var(--box-laranja); }
+.box.azul { border-left-color: var(--azul2); background: var(--box-azul); }
+
+/* Tabelas */
+table { width: 100%; border-collapse: collapse; margin: 10pt 0 12pt; font-size: 8.5pt; line-height: 12pt; }
+th { padding: 6pt 8pt; background: var(--azul); color: #fff; text-align: left; font-size: 8.5pt; }
+td { padding: 6pt 8pt; border-bottom: 0.75pt solid var(--linha); vertical-align: top; }
+tbody tr:nth-child(even) td { background: var(--zebra); }
+table.etapas td { width: 25%; }
+
+/* Passos numerados */
+.step { display: table; width: 100%; margin-bottom: 12pt; }
+.step > .num { display: table-cell; width: 30pt; vertical-align: top; }
+.step > .num span { display: block; width: 30pt; height: 26pt; background: var(--teal); color: #fff;
+                    text-align: center; font: bold 9.5pt/26pt "DejaVu Sans"; }
+.step > .body { display: table-cell; padding-left: 14pt; vertical-align: top; }
+.step h3 { margin: 3pt 0 5pt; color: var(--azul); font-size: 10.5pt; }
+.step p, .step ul { margin-bottom: 5pt; }
+
+figure { margin: 10pt 0 14pt; }
+figure { text-align: center; }
+figure img { width: 62%; border: 0.75pt solid var(--linha); }
+figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
+.painel { display: table; width: 100%; background: var(--box-azul); }
+.painel { page-break-inside: avoid; }
+.painel .shot { display: table-cell; width: 34%; padding: 10pt; vertical-align: top; }
+.painel .shot img { width: 100%; }
+.painel .lista { display: table-cell; padding: 10pt 12pt; vertical-align: top; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="circle-teal"></div>
+  <div class="circle-blue"></div>
+  <div class="bar"></div>
+  <div class="badge">SÃO PAULO • APARTAMENTOS RESIDENCIAIS</div>
+  <h1 class="title">Manual de utilização</h1>
+  <p class="subtitle">Aplicativo de precificação imobiliária fundamentado em modelo de avaliação automatizada</p>
+  <div class="rule"></div>
+  <div class="meta">Versão do aplicativo: 7<br>Modelo: SP-AVM-ITBI-PGV-2026.07-R2<br>Setembro de 2026</div>
+  <div class="foot">Documento de orientação operacional - AVM SP</div>
+</div>
+
+<section>
+  <h1>1. Princípio básico</h1>
+  <p>O AVM SP estima o valor de mercado de apartamentos residenciais no município de São Paulo. O modelo identifica relações estatísticas entre características do imóvel e valores observados em transações imobiliárias.</p>
+  <div class="box"><strong>Em uma frase</strong>
+    <p>O usuário informa as características do apartamento, o sistema aplica o modelo correspondente e apresenta uma estimativa central acompanhada de uma faixa de incerteza.</p>
+  </div>
+  <table class="etapas">
+    <thead><tr><th>1 DADOS</th><th>2 MODELO</th><th>3 RESULTADO</th><th>4 RELATÓRIO</th></tr></thead>
+    <tbody><tr>
+      <td>Endereço, área, idade, padrão IPTU e PGV</td>
+      <td>Seleciona as variáveis e aplica os parâmetros</td>
+      <td>Valor, R$/m², intervalo e confiança</td>
+      <td>Impressão em PDF e download em Excel</td>
+    </tr></tbody>
+  </table>
+  <h2>Variáveis iniciais</h2>
+  <table>
+    <thead><tr><th style="width:38%">Variável</th><th>O que representa</th></tr></thead>
+    <tbody>
+      <tr><td>Área construída (IPTU)</td><td>Área construída da unidade no cadastro municipal. É a área que entra no cálculo.</td></tr>
+      <tr><td>Idade</td><td>Quantidade de anos transcorridos desde a construção.</td></tr>
+      <tr><td>Padrão cadastral do IPTU</td><td>Classificação construtiva utilizada no cadastro municipal.</td></tr>
+      <tr><td>Valor fiscal da PGV</td><td>Valor fiscal por metro quadrado associado à localização cadastral do imóvel.</td></tr>
+    </tbody>
+  </table>
+  <div class="box laranja"><strong>O condomínio não entra no cálculo</strong>
+    <p>O valor da cota condominial foi excluído da precificação. SFH, SFI e SBPE são informações de enquadramento da operação e não alteram diretamente o valor de mercado estimado.</p>
+  </div>
+</section>
+
+<section>
+  <h1>2. Dados e escopo do modelo</h1>
+  <p>O treinamento utiliza duas fontes oficiais. A base de ITBI fornece as transações e a PGV fornece a referência fiscal territorial. Somente transações classificadas como compra e venda são admitidas no conjunto de modelagem.</p>
+  <table>
+    <thead><tr><th style="width:26%">Fonte</th><th style="width:42%">Finalidade</th><th>Localização</th></tr></thead>
+    <tbody>
+      <tr><td>Guias de ITBI pagas</td><td>Valores e características de transações imobiliárias efetivadas.</td><td><a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501">Prefeitura de São Paulo - arquivo XLSX</a></td></tr>
+      <tr><td>PGV - Lei 18.330/2025</td><td>Valor fiscal por metro quadrado e referência territorial.</td><td><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025">Legislação municipal e anexos</a></td></tr>
+    </tbody>
+  </table>
+  <div class="box azul"><strong>Onde estão os dados no projeto?</strong>
+    <p>O arquivo site/assets/model.json contém os parâmetros derivados do treinamento. O algoritmo está em train_model.py. As bases brutas de ITBI e PGV não estão incorporadas no pacote entregue e precisam ser obtidas nas fontes oficiais para reproduzir o treinamento.</p>
+  </div>
+  <h2>Limites de aplicação</h2>
+  <ul>
+    <li>Apartamentos residenciais localizados no município de São Paulo.</li>
+    <li>Área construída entre 35 m² e 250 m², inclusive.</li>
+    <li>Idade máxima de 20 anos.</li>
+    <li>Valor de avaliação de até R$ 2.250.000,00.</li>
+    <li>Operações informadas como SFH ou SFI, com indicação de recursos SBPE ou outros.</li>
+  </ul>
+  <div class="box laranja"><strong>Atenção</strong>
+    <p>O resultado é uma estimativa estatística. Não deve ser usado conclusivamente quando o imóvel estiver fora desses limites ou apresentar características especiais não representadas no modelo. Os limites vigentes são lidos do próprio arquivo do modelo e aparecem no topo da tela de precificação.</p>
+  </div>
+</section>
+
+<section>
+  <h1>3. Passo a passo - identificação</h1>
+  <div class="step"><div class="num"><span>1</span></div><div class="body">
+    <h3>Abrir o aplicativo</h3>
+    <p>Acesse <a href="https://avm.heybrain.uk/">avm.heybrain.uk</a> e selecione a área Precificação.</p>
+  </div></div>
+  <div class="step"><div class="num"><span>2</span></div><div class="body">
+    <h3>Escolher como informar o imóvel</h3>
+    <p>Você pode carregar a matrícula ou preencher os campos manualmente.</p>
+    <ul><li>Matrícula: selecione um arquivo PDF, JPG, PNG ou WebP.</li>
+        <li>Manual: digite endereço, complemento, bairro, CEP e as áreas.</li></ul>
+  </div></div>
+  <div class="step"><div class="num"><span>3</span></div><div class="body">
+    <h3>Conferir a leitura da matrícula</h3>
+    <p>O aplicativo tenta identificar o endereço e a área privativa. Revise os campos e corrija qualquer erro antes de continuar.</p>
+    <ul><li>A área lida da matrícula é a privativa e vai para o campo de conferência.</li>
+        <li>Não confunda com área total, comum, global construída ou área do terreno.</li>
+        <li>Valores decimais, como 72,45 m², são aceitos.</li></ul>
+  </div></div>
+  <div class="step"><div class="num"><span>4</span></div><div class="body">
+    <h3>Preencher CEP e bairro</h3>
+    <p>Depois de informar o endereço, acione Localizar CEP. O sistema preenche CEP e bairro automaticamente. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</p>
+  </div></div>
+  <div class="box laranja"><strong>Documento digitalizado</strong>
+    <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. O documento é lido no próprio navegador e não é enviado a servidor algum.</p>
+  </div>
+  <h2>As duas áreas</h2>
+  <table>
+    <thead><tr><th style="width:38%">Campo</th><th>Como usar</th></tr></thead>
+    <tbody>
+      <tr><td>Área privativa (matrícula)</td><td>Área de uso exclusivo da unidade. Serve para identificar e conferir o imóvel e não entra no cálculo.</td></tr>
+      <tr><td>Área construída (IPTU)</td><td>Área da unidade no cadastro municipal, que inclui a fração das áreas comuns. É a área do cálculo, porque é a definição usada nas transações que treinaram o modelo.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h1>4. Telas do aplicativo</h1>
+  <h2>Tela de preenchimento</h2>
+  <p>Nesta área, o usuário pode carregar a matrícula, informar ou conferir o endereço e revisar CEP, bairro, áreas e idade.</p>
+  <figure>
+    <img src="manual-shot-form.png" alt="Tela de preenchimento do AVM SP">
+    <figcaption>Exemplo da interface da versão 7. A leitura automática deve sempre ser conferida antes do cálculo.</figcaption>
+  </figure>
+  <h2>Painel de resultado</h2>
+  <div class="painel">
+    <div class="shot"><img src="manual-shot-result.png" alt="Painel de resultado do AVM SP"></div>
+    <div class="lista">
+      <p><strong>O painel apresenta:</strong></p>
+      <ul>
+        <li>Situação do imóvel em relação ao escopo.</li>
+        <li>Valor central da precificação.</li>
+        <li>Valor estimado por metro quadrado.</li>
+        <li>Intervalo de 80%, confiança e alertas nas seções seguintes da tela.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h1>5. Passo a passo - variáveis</h1>
+  <div class="step"><div class="num"><span>5</span></div><div class="body">
+    <h3>Informar a idade</h3>
+    <p>Digite a idade aproximada do edifício em anos. Por exemplo: construção em 2020 corresponde a aproximadamente 6 anos em 2026. O aplicativo mostra o ano de conclusão equivalente. O limite atual é de 20 anos.</p>
+  </div></div>
+  <div class="step"><div class="num"><span>6</span></div><div class="body">
+    <h3>Selecionar o padrão cadastral do IPTU</h3>
+    <p>Informe a categoria constante do cadastro ou documento do IPTU. O padrão representa a classificação construtiva municipal e não equivale, necessariamente, ao estado de conservação observado em vistoria.</p>
+  </div></div>
+  <div class="step"><div class="num"><span>7</span></div><div class="body">
+    <h3>Informar o valor fiscal da PGV</h3>
+    <p>Digite o valor fiscal por metro quadrado de terreno (VM2T) do trecho de logradouro e da quadra do imóvel. A PGV é uma referência tributária e funciona no modelo como indicador cadastral e territorial; isoladamente, não corresponde ao valor de mercado.</p>
+  </div></div>
+  <div class="step"><div class="num"><span>8</span></div><div class="body">
+    <h3>Habilitar ou desabilitar variáveis</h3>
+    <p>Marque quais informações devem participar do cálculo. Para a avaliação principal, recomenda-se manter as quatro variáveis habilitadas.</p>
+    <ul><li>A desativação permite simulações e uso quando um dado estiver indisponível.</li>
+        <li>O sistema seleciona um dos modelos preparados para a combinação escolhida.</li>
+        <li>Menos variáveis podem reduzir a capacidade de representar adequadamente o imóvel.</li></ul>
+  </div></div>
+</section>
+
+<section>
+  <h1>6. Passo a passo - cálculo</h1>
+  <div class="step"><div class="num"><span>9</span></div><div class="body">
+    <h3>Informar o enquadramento da operação</h3>
+    <p>Selecione SFH ou SFI e indique se os recursos são do SBPE ou de outra origem. Essas opções registram o enquadramento informado, mas não modificam diretamente a estimativa de mercado.</p>
+  </div></div>
+  <table>
+    <thead><tr><th style="width:24%">Sigla</th><th>Significado operacional</th></tr></thead>
+    <tbody>
+      <tr><td>SFH</td><td>Sistema Financeiro da Habitação, sujeito a regras e limites próprios.</td></tr>
+      <tr><td>SFI</td><td>Sistema de Financiamento Imobiliário, com estrutura contratual mais flexível.</td></tr>
+      <tr><td>SBPE</td><td>Sistema Brasileiro de Poupança e Empréstimo, relacionado à origem dos recursos.</td></tr>
+    </tbody>
+  </table>
+  <div class="step"><div class="num"><span>10</span></div><div class="body">
+    <h3>Executar a precificação</h3>
+    <p>Revise todos os dados, confirme a declaração abaixo do formulário e clique em Calcular precificação. O sistema escolhe o modelo compatível com as variáveis habilitadas e apresenta o resultado na tela.</p>
+  </div></div>
+  <div class="box"><strong>Antes de clicar em calcular</strong>
+    <p>Confirme endereço, área construída, idade, padrão do IPTU e valor fiscal. Um dado incorreto pode produzir uma estimativa coerente matematicamente, mas inadequada para o imóvel real.</p>
+  </div>
+  <h2>Resumo da conferência</h2>
+  <ul>
+    <li>☐ O endereço corresponde ao apartamento avaliado.</li>
+    <li>☐ A área do cálculo é a construída do IPTU e foi digitada com a unidade correta.</li>
+    <li>☐ A idade está entre 0 e 20 anos.</li>
+    <li>☐ O padrão cadastral foi obtido no IPTU ou cadastro municipal.</li>
+    <li>☐ O valor fiscal corresponde à PGV aplicável e à localização correta.</li>
+  </ul>
+</section>
+
+<section>
+  <h1>7. Como interpretar o resultado</h1>
+  <table>
+    <thead><tr><th style="width:30%">Indicador</th><th>Interpretação</th></tr></thead>
+    <tbody>
+      <tr><td>Valor estimado</td><td>Ponto central calculado pelo modelo para as informações fornecidas.</td></tr>
+      <tr><td>Valor por m²</td><td>Valor estimado dividido pela área construída informada.</td></tr>
+      <tr><td>Intervalo de 80%</td><td>Faixa de incerteza calibrada. Não significa que todo imóvel será negociado dentro dela.</td></tr>
+      <tr><td>Confiança</td><td>Indicador de suporte e adequação do caso aos dados e variáveis disponíveis. Sobe com as quatro variáveis habilitadas e com transações da base na região do CEP; o motivo aparece ao lado do nível.</td></tr>
+      <tr><td>Alertas</td><td>Avisos sobre limites, inconsistências ou situações que exigem análise adicional.</td></tr>
+    </tbody>
+  </table>
+  <div class="box azul"><strong>Exemplo de leitura</strong>
+    <p>Se o sistema apresentar valor estimado de R$ 500.000 e intervalo de R$ 410.000 a R$ 620.000, R$ 500.000 é a referência central. A amplitude da faixa expressa a incerteza estatística e deve ser considerada na decisão.</p>
+  </div>
+  <h2>O que a confiança não significa</h2>
+  <p>Confiança alta não garante venda pelo valor indicado, não elimina riscos jurídicos ou físicos e não substitui inspeção quando necessária. O mercado pode ser afetado por conservação, vista, andar, vagas, reforma, liquidez e outros atributos ainda não incluídos no modelo.</p>
+  <div class="box laranja"><strong>Regra prática</strong>
+    <p>Quanto mais atípico for o apartamento e quanto mais amplo for o intervalo, maior a necessidade de avaliação técnica individual e, quando aplicável, vistoria presencial.</p>
+  </div>
+</section>
+
+<section>
+  <h1>8. Emitir e arquivar o relatório</h1>
+  <div class="step"><div class="num"><span>11</span></div><div class="body">
+    <h3>Gerar o relatório em PDF</h3>
+    <p>Confira os dados e clique em Gerar relatório em PDF. Na janela de impressão do navegador, escolha salvar como PDF.</p>
+    <ul><li>Verifique os dados identificadores do imóvel.</li>
+        <li>Confirme as variáveis habilitadas e desabilitadas.</li>
+        <li>Leia o intervalo, a confiança e todos os alertas.</li>
+        <li>Confira a versão do modelo registrada no relatório.</li></ul>
+  </div></div>
+  <div class="step"><div class="num"><span>12</span></div><div class="body">
+    <h3>Baixar o arquivo Excel</h3>
+    <p>Clique em Baixar Excel. A planilha registra entradas, resultado, variáveis utilizadas e informações do modelo, podendo integrar o dossiê da avaliação.</p>
+  </div></div>
+  <div class="box"><strong>Rastreabilidade</strong>
+    <p>Salve conjuntamente a matrícula utilizada, os documentos do IPTU/PGV, o relatório em PDF e o Excel. A versão atual não possui banco de dados nem histórico central; o arquivamento é responsabilidade do usuário.</p>
+  </div>
+  <h2>Conteúdo mínimo a conferir</h2>
+  <ul>
+    <li>Data e identificação da avaliação.</li>
+    <li>Endereço, área privativa e área construída.</li>
+    <li>Fontes e variáveis consideradas.</li>
+    <li>Valor central, valor unitário e intervalo.</li>
+    <li>Versão do modelo, confiança, alertas e limitações.</li>
+  </ul>
+</section>
+
+<section>
+  <h1>9. Quando encaminhar para análise técnica</h1>
+  <p>Não conclua a avaliação somente pelo AVM quando houver:</p>
+  <ul>
+    <li>Área duvidosa ou divergente entre matrícula e cadastro.</li>
+    <li>Matrícula ilegível, incompleta ou com baixa qualidade de digitalização.</li>
+    <li>Endereço não localizado ou correspondência cadastral incerta.</li>
+    <li>Padrão cadastral ou valor fiscal desconhecido.</li>
+    <li>Cobertura, garden, terraço, vagas especiais ou outras características atípicas.</li>
+    <li>Reforma relevante, conservação incomum, ocupação ou restrição física.</li>
+    <li>Imóvel fora dos limites de área, idade, localização ou valor do modelo.</li>
+    <li>Intervalo excessivamente amplo ou alertas de baixo suporte.</li>
+    <li>Divergência entre matrícula, IPTU, endereço e situação física.</li>
+  </ul>
+  <div class="box laranja"><strong>Limite de responsabilidade</strong>
+    <p>O AVM é uma ferramenta de apoio. A versão atual não substitui automaticamente vistoria, análise jurídica da matrícula, validação cadastral ou laudo técnico completo quando esses procedimentos forem exigidos.</p>
+  </div>
+  <h2>Referências do aplicativo</h2>
+  <ul>
+    <li><a href="https://avm.heybrain.uk/">Aplicativo AVM SP</a></li>
+    <li><a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501">Base municipal de ITBI</a></li>
+    <li><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025">Lei municipal 18.330/2025 - PGV</a></li>
+    <li><a href="https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo=Resolu%C3%A7%C3%A3o&numero=4676">Resolução CMN 4.676 - texto consolidado</a></li>
+  </ul>
+</section>
+
+</body>
+</html>

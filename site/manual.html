@@ -33,96 +33,12 @@
     <nav class="tabs" aria-label="Páginas"><a class="tab" href="/">Precificação</a><a class="tab" href="/metodologia">Metodologia</a><a class="tab is-active" href="/manual" aria-current="page">Manual</a></nav>
     <div></div>
   </header>
-  <main class="page-prose">
+  <main class="page-prose page-viewer">
     <p class="eyebrow">Manual de utilização</p>
     <h1>Como usar o AVM SP</h1>
-    <article class="panel prose-panel">
-      <p class="lead">Em uma frase: você informa as características do apartamento, o sistema aplica o modelo correspondente e apresenta uma estimativa central acompanhada de uma faixa de incerteza. Todo o cálculo acontece no seu navegador.</p>
-
-      <h2>1. Princípio básico</h2>
-      <p>O AVM SP estima o valor de mercado de apartamentos residenciais no município de São Paulo. O modelo identifica relações estatísticas entre características do imóvel e valores observados em transações imobiliárias, em quatro etapas: <strong>dados</strong> (endereço, área, idade, padrão do IPTU e PGV), <strong>modelo</strong> (seleciona as variáveis e aplica os parâmetros), <strong>resultado</strong> (valor, R$/m², intervalo e confiança) e <strong>relatório</strong> (impressão em PDF e download em Excel).</p>
-      <p>As quatro variáveis do cálculo são a área construída, a idade, o padrão cadastral do IPTU e o valor fiscal da PGV. <strong>O condomínio não entra na precificação.</strong> SFH, SFI e SBPE são informações de enquadramento da operação e não alteram o valor de mercado estimado.</p>
-
-      <h2>2. Dados e escopo do modelo</h2>
-      <p>O treinamento usa duas fontes oficiais: as <strong>guias de ITBI pagas</strong> da Prefeitura de São Paulo, que fornecem valores e características de transações efetivadas, e a <strong>PGV da Lei 18.330/2025</strong>, que fornece o valor fiscal por metro quadrado e a referência territorial. Somente transações classificadas como compra e venda entram no conjunto de modelagem.</p>
-      <p>Limites de aplicação: apartamentos residenciais no município de São Paulo, dentro das faixas de área, idade e valor do domínio de treino, com operação informada como SFH ou SFI e recursos SBPE ou de outra origem. As faixas vigentes aparecem no topo da página <a href="/">Precificação</a> e na <a href="/metodologia">metodologia</a>; elas mudam a cada novo treino, por isso não estão repetidas aqui.</p>
-      <p><strong>Atenção.</strong> O resultado é uma estimativa estatística. Não deve ser usado conclusivamente quando o imóvel estiver fora desses limites ou apresentar características especiais não representadas no modelo.</p>
-
-      <h2>3. Passo a passo — identificação</h2>
-      <ul>
-        <li><strong>1. Abrir o aplicativo.</strong> Acesse <a href="/">avm.heybrain.uk</a> e selecione a área Precificação.</li>
-        <li><strong>2. Escolher como informar o imóvel.</strong> Você pode carregar a matrícula (PDF, JPG, PNG ou WebP) ou preencher os campos manualmente: endereço, complemento, bairro, CEP e áreas.</li>
-        <li><strong>3. Conferir a leitura da matrícula.</strong> O aplicativo tenta identificar o endereço e a área privativa, mas não confere nada por você: revise os campos e corrija qualquer erro antes de continuar.</li>
-        <li><strong>4. Preencher CEP e bairro.</strong> Depois de informar o endereço, acione <strong>Localizar CEP</strong>. O sistema preenche CEP e bairro a partir do OpenStreetMap. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</li>
-      </ul>
-      <p><strong>Documento digitalizado.</strong> PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. O documento é lido no seu navegador e não é enviado a servidor algum.</p>
-
-      <h2>4. As duas áreas</h2>
-      <p>O formulário tem dois campos de área, e eles não são intercambiáveis:</p>
-      <ul>
-        <li><strong>Área privativa (matrícula)</strong> — área de uso exclusivo do apartamento, obtida na matrícula. É o campo que a leitura automática preenche. Serve para identificar e conferir o imóvel e <strong>não entra no cálculo</strong>.</li>
-        <li><strong>Área construída (IPTU)</strong> — área construída da unidade no cadastro municipal, que inclui a fração das áreas comuns e por isso costuma ser maior que a privativa. <strong>É esta que entra no cálculo</strong>, porque é a definição usada nas transações que treinaram o modelo.</li>
-      </ul>
-      <p>Informar a área privativa no campo do cálculo faria a estimativa cair na mesma proporção da diferença entre as duas. Quando a proporção entre elas for atípica, o aplicativo emite um alerta pedindo conferência. Em nenhuma das duas use área total, comum, global construída do edifício ou área do terreno. Valores decimais, como 72,45 m², são aceitos.</p>
-
-      <h2>5. Passo a passo — variáveis</h2>
-      <ul>
-        <li><strong>5. Informar a idade.</strong> Digite a idade aproximada do edifício em anos. O aplicativo mostra o ano de conclusão equivalente, contando do ano-base do modelo.</li>
-        <li><strong>6. Selecionar o padrão cadastral do IPTU.</strong> Informe a categoria constante do cadastro ou do carnê. O padrão é a classificação construtiva municipal e não equivale, necessariamente, ao estado de conservação observado em vistoria.</li>
-        <li><strong>7. Informar o valor fiscal da PGV.</strong> Digite o valor fiscal por metro quadrado de terreno (VM2T) do trecho de logradouro e da quadra do imóvel. A PGV é referência tributária e territorial; isoladamente, não corresponde ao valor de mercado.</li>
-        <li><strong>8. Habilitar ou desabilitar variáveis.</strong> Marque quais informações participam do cálculo. Para a avaliação principal, mantenha as quatro habilitadas. A desativação permite simulações e uso quando um dado estiver indisponível: o sistema seleciona um dos modelos preparados para a combinação escolhida, e menos variáveis reduzem a capacidade de representar o imóvel.</li>
-      </ul>
-
-      <h2>6. Passo a passo — cálculo</h2>
-      <ul>
-        <li><strong>9. Informar o enquadramento da operação.</strong> Selecione SFH ou SFI e indique se os recursos são do SBPE ou de outra origem. Essas opções registram o enquadramento informado, mas não modificam a estimativa de mercado.</li>
-        <li><strong>10. Executar a precificação.</strong> Revise todos os dados e clique em <strong>Calcular precificação</strong>. O sistema escolhe o modelo compatível com as variáveis habilitadas e apresenta o resultado na tela.</li>
-      </ul>
-      <p><strong>Siglas.</strong> SFH é o Sistema Financeiro da Habitação, sujeito a regras e limites próprios; SFI é o Sistema de Financiamento Imobiliário, com estrutura contratual mais flexível; SBPE é o Sistema Brasileiro de Poupança e Empréstimo, relacionado à origem dos recursos.</p>
-      <p><strong>Antes de clicar em calcular</strong>, confirme: o endereço corresponde ao apartamento avaliado; a área construída é a do cadastro do IPTU; a idade está dentro do limite; o padrão cadastral foi obtido no IPTU; e o valor fiscal corresponde à PGV da localização correta. Um dado incorreto pode produzir uma estimativa coerente matematicamente, mas inadequada para o imóvel real.</p>
-
-      <h2>7. Como interpretar o resultado</h2>
-      <ul>
-        <li><strong>Valor estimado</strong> — ponto central calculado pelo modelo para as informações fornecidas.</li>
-        <li><strong>Valor por m²</strong> — valor estimado dividido pela área construída informada.</li>
-        <li><strong>Intervalo</strong> — faixa de incerteza calibrada. Não significa que todo imóvel será negociado dentro dela.</li>
-        <li><strong>Confiança</strong> — indicador de suporte e adequação do caso aos dados e variáveis disponíveis. Sobe com as quatro variáveis habilitadas e com transações da base na região do CEP; cai quando faltam variáveis ou suporte local. O motivo aparece junto do indicador.</li>
-        <li><strong>Alertas</strong> — avisos sobre limites, inconsistências ou situações que exigem análise adicional.</li>
-      </ul>
-      <p><strong>Exemplo de leitura.</strong> Se o sistema apresentar valor estimado de R$ 500.000 e intervalo de R$ 410.000 a R$ 620.000, R$ 500.000 é a referência central. A amplitude da faixa expressa a incerteza estatística e deve ser considerada na decisão.</p>
-      <p><strong>O que a confiança não significa.</strong> Confiança alta não garante venda pelo valor indicado, não elimina riscos jurídicos ou físicos e não substitui inspeção quando necessária. O mercado pode ser afetado por conservação, vista, andar, vagas, reforma, liquidez e outros atributos ainda não incluídos no modelo. Quanto mais atípico for o apartamento e quanto mais amplo o intervalo, maior a necessidade de avaliação técnica individual.</p>
-      <p>Se aparecer <strong>estimativa recusada</strong>, o imóvel está fora do domínio de treino: corrija o dado apontado ou desabilite a variável que você não conhece. O aplicativo não extrapola.</p>
-
-      <h2>8. Emitir e arquivar o relatório</h2>
-      <ul>
-        <li><strong>11. Gerar o relatório em PDF.</strong> Confira os dados e clique em <strong>Gerar relatório em PDF</strong>. Na janela de impressão do navegador, escolha salvar como PDF.</li>
-        <li><strong>12. Baixar o arquivo Excel.</strong> Clique em <strong>Baixar Excel</strong>. A planilha registra entradas, resultado, variáveis utilizadas e informações do modelo, e pode integrar o dossiê da avaliação.</li>
-      </ul>
-      <p>Conteúdo mínimo a conferir: data e identificação da avaliação; endereço, área privativa e área construída; fontes e variáveis consideradas; valor central, valor unitário e intervalo; versão do modelo, confiança, alertas e limitações.</p>
-      <p><strong>Rastreabilidade.</strong> Salve conjuntamente a matrícula utilizada, os documentos do IPTU e da PGV, o relatório em PDF e o Excel. A versão atual não possui banco de dados nem histórico central: o arquivamento é responsabilidade do usuário.</p>
-
-      <h2>9. Quando encaminhar para análise técnica</h2>
-      <p>Não conclua a avaliação somente pelo AVM quando houver:</p>
-      <ul>
-        <li>Área duvidosa ou divergente entre matrícula e cadastro.</li>
-        <li>Matrícula ilegível, incompleta ou com baixa qualidade de digitalização.</li>
-        <li>Endereço não localizado ou correspondência cadastral incerta.</li>
-        <li>Padrão cadastral ou valor fiscal desconhecido.</li>
-        <li>Cobertura, garden, terraço, vagas especiais ou outras características atípicas.</li>
-        <li>Reforma relevante, conservação incomum, ocupação ou restrição física.</li>
-        <li>Imóvel fora dos limites de área, idade, localização ou valor do modelo.</li>
-        <li>Intervalo excessivamente amplo ou alertas de baixo suporte.</li>
-        <li>Divergência entre matrícula, IPTU, endereço e situação física.</li>
-      </ul>
-      <p><strong>Limite de responsabilidade.</strong> O AVM é uma ferramenta de apoio. A estimativa não é laudo nem avaliação de imóvel na acepção da NBR 14653-2 e não substitui vistoria, análise jurídica da matrícula, validação cadastral ou laudo técnico completo quando esses procedimentos forem exigidos. Veja os <a href="/termos">termos de uso</a>.</p>
-
-      <h2>10. Referências do aplicativo</h2>
-      <ul>
-        <li><a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501" target="_blank" rel="noreferrer">Base municipal de ITBI — Secretaria Municipal da Fazenda de São Paulo</a></li>
-        <li><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025" target="_blank" rel="noreferrer">Lei municipal 18.330/2025 — PGV</a></li>
-        <li><a href="/metodologia">Metodologia, métricas de erro e limites do modelo</a></li>
-      </ul>
-    </article>
+    <p class="manual-download"><a class="secondary-button" href="/manual-avm-sp-v7.pdf" download="Manual_de_Utilizacao_AVM_SP_v7.pdf">Baixar o manual em PDF <span aria-hidden="true">↓</span></a><small>Documento de orientação operacional, versão 7 · 10 páginas · 200 KB</small></p>
+    <iframe class="manual-frame" src="/manual-avm-sp-v7.pdf#view=FitH" title="Manual de utilização do AVM SP, versão 7"></iframe>
+    <p class="manual-note">Se o documento não abrir aqui — alguns navegadores de celular não exibem PDF na página —, use o botão acima para baixar.</p>
   </main>
   <footer class="app-footer">
     <span>AVM/SP</span>
