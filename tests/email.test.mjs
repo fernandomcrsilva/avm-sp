@@ -297,3 +297,22 @@ test("email(): sem Message-ID não manda cabeçalhos de conversa; send falha →
   assert.equal(logs.at(-1).event, "email_send_failed");
   assert.equal(logs.at(-1).error, "Error");
 });
+
+test("email(): erro inesperado no processamento → setReject, sem send, log só com o nome do erro", async () => {
+  const { env, sent } = ambiente();
+  const msg = mensagem();
+  const original = globalThis.AVMExcel.buildWorkbook; // força uma exceção fora dos try/catch do pipeline
+  globalThis.AVMExcel.buildWorkbook = () => { throw new TypeError("planilha indisponível"); };
+  try {
+    await worker.email(msg, env, {});
+  } finally {
+    globalThis.AVMExcel.buildWorkbook = original;
+  }
+  assert.match(msg.rejected, /Erro interno ao processar/);
+  assert.equal(sent.length, 0);
+  const log = logs.at(-1);
+  assert.equal(log.event, "email_processed");
+  assert.equal(log.outcome, "error");
+  assert.equal(log.error, "TypeError");
+  assert.equal(JSON.stringify(log).includes("planilha indisponível"), false); // só error.name, nunca a mensagem
+});
