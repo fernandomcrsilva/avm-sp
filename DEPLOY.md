@@ -7,7 +7,7 @@
   conta nem cookie.
 - **Onde**: Cloudflare Workers Static Assets, Worker `avm-sp`, conta HeyBrain!, Custom Domain `avm.heybrain.uk`.
   Preview em `*.avm-sp.heybrain.workers.dev` com `X-Robots-Tag: noindex`.
-- **Como publica**: PR → CI (`check`) → preview (`wrangler versions upload`) → merge → tag `v*` → `versions deploy`.
+- **Como publica**: PR → CI (`check`) → merge → preview da `main` (`wrangler versions upload`) → tag `v*` → `versions deploy`.
   Rollback = `versions deploy <anterior>@100%`. Detalhes no [RUNBOOK.md](RUNBOOK.md).
 
 ## Arquitetura
