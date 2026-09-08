@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CARNE, MATRICULA, MATRICULA_CASA } from "./fixtures/textos.mjs";
-import { LIMITS, parseInbound, readDocuments, buildInputs } from "../src/email.js";
+import { LIMITS, parseInbound, readDocuments, buildInputs, compose } from "../src/email.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
 export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [] } = {}) {
@@ -99,4 +99,44 @@ test("readDocuments: duas matrículas é ambíguo", () => {
   const out = readDocuments(textos([["a.pdf", MATRICULA], ["b.pdf", MATRICULA], ["iptu.pdf", CARNE]]));
   assert.equal(out.ambiguous, "matricula");
   assert.deepEqual(buildInputs(out.docs, out.ambiguous), { ambiguous: "matricula" });
+});
+
+async function relatorioExemplo() {
+  const { docs } = readDocuments(textos([["iptu.pdf", CARNE], ["matricula.pdf", MATRICULA]]));
+  const { v } = buildInputs(docs);
+  v.district = "Paraíso";
+  const { AvmReport } = globalThis;
+  const { model } = await import("../src/email.js");
+  return AvmReport.build(model, v, AvmReport.estimate(model, v), new Date("2026-09-08T12:00:00Z"));
+}
+
+const norm = (s) => String(s).replace(/ /g, " "); // Intl pt-BR usa espaço inseparável depois de "R$"
+
+test("compose(report): identificação, faixa, documentos, premissas, avisos e rodapé", async () => {
+  const report = await relatorioExemplo();
+  const out = compose("report", { subject: "Avaliação", report, unreadable: [], ignored: ["planilha.xlsx"] });
+  assert.equal(out.subject, "Re: Avaliação");
+  for (const trecho of [
+    "Não é laudo", `Identificação: ${report.id}`, "Rua Vergueiro, 2650 · CEP 04109-002 · Paraíso",
+    "área privativa 78 m² (matrícula)", "idade 8 anos / 2018 (IPTU)", "padrão 2-C (IPTU)", "VM2T R$ 6.500/m² (IPTU)",
+    "Faixa de 80% de probabilidade: R$", "Valor central: R$", "/m²)",
+    "Documentos lidos: iptu.pdf + matricula.pdf — texto do PDF.", "Ignorados: planilha.xlsx.",
+    "apartamento residencial (conforme a matrícula)", "SFH / SBPE", report.risks[0],
+    "https://avm.heybrain.uk/metodologia", "processados em memória e não foram armazenados",
+  ]) assert.ok(norm(out.text).includes(norm(trecho)), `faltou no texto: ${trecho}`);
+  assert.ok(norm(out.html).includes("<p>") && norm(out.html).includes(report.id) && !norm(out.html).includes("<script"));
+});
+
+test("compose: recusa, faltou, não lido e ambíguo", () => {
+  const refused = compose("refused", { subject: "", reasons: [{ code: "area", text: "área privativa acima de 250 m²" }] });
+  assert.equal(refused.subject, "AVM SP — estimativa");
+  assert.ok(norm(refused.text).includes("recusada porque o imóvel está fora do domínio do modelo") && norm(refused.text).includes("área privativa acima de 250 m²") && norm(refused.text).includes("Não há relatório."));
+  const missing = compose("missing", { subject: "x", missing: ["área privativa (esperada na matrícula)"], unreadable: ["iptu.pdf"], ignored: [] });
+  assert.ok(norm(missing.text).includes("Faltou:") && norm(missing.text).includes("- área privativa (esperada na matrícula)") && norm(missing.text).includes("Não foi possível ler: iptu.pdf (sem camada de texto)") && norm(missing.text).includes("Reenvie com os documentos completos, em um único e-mail."));
+  const unreadable = compose("unreadable", { subject: "x", unreadable: ["a.pdf", "b.pdf"] });
+  assert.ok(norm(unreadable.text).includes("Não foi possível ler: a.pdf, b.pdf (sem camada de texto).") && norm(unreadable.text).includes("Envie o PDF original digital."));
+  const ambiguous = compose("ambiguous", { subject: "x", ambiguous: "matricula" });
+  assert.ok(norm(ambiguous.text).includes("mais de uma matrícula") && norm(ambiguous.text).includes("Envie um imóvel por e-mail."));
+  const notApartment = compose("refused", { subject: "x", reasons: [{ code: "apartment", text: "a matrícula não descreve um apartamento; o modelo cobre apenas apartamentos residenciais" }] });
+  assert.ok(norm(notApartment.text).includes("não descreve um apartamento"));
 });
