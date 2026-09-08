@@ -11,12 +11,9 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const number = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
-const VARIABLE_LABELS = { area: "Área construída", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
-const EXAMPLE = { address: "Rua Exemplo, 100", complement: "Apto 100", district: "Vila Mariana", cep: "04109-002", privateArea: 66, area: 78, age: 8, pattern: "22", fiscal: 6500, financing: "SFH", funds: "SBPE" }; // endereço fictício; o CEP só mostra a região
+const VARIABLE_LABELS = { area: "Área privativa", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
+const EXAMPLE = { address: "Rua Vergueiro, 2.650", district: "Vila Mariana", cep: "04109-002", area: 78, age: 8, pattern: "22", fiscal: 6500, financing: "SFH", funds: "SBPE" }; // o CEP só mostra a região
 let calcSeq = 0; // a identificação é assíncrona (hash): só a última estimativa iniciada pode renderizar
-// Faixa plausível da área privativa sobre a construída do IPTU: a construída inclui a fração de comum.
-// ponytail: dois números fixos em vez de tabela por tipologia; servem só para acender um alerta de conferência.
-const PRIVATE_AREA_RATIO = [0.55, 1];
 
 function cepDigits(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 8);
@@ -47,12 +44,13 @@ function setBadge(text, kind) {
   badge.className = `status-badge ${kind}`;
 }
 
-// Geocodificação: só por clique explícito. É o único momento em que algo digitado sai do navegador.
-async function locateAddress() {
+// Geocodificação: automática quando o usuário termina de editar o endereço, e sob demanda pelo botão.
+// É o único momento em que algo digitado sai do navegador.
+async function locateAddress(auto) {
   const address = $("address").value.trim();
   const status = $("address-lookup-status");
   if (address.length < 5) {
-    status.textContent = "Digite o endereço com número antes de localizar.";
+    if (!auto) status.textContent = "Digite o endereço com número antes de localizar.";
     return;
   }
   const key = address.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
@@ -89,7 +87,7 @@ async function locateAddress() {
     }
     if (!selected.cep) throw new Error("CEP não disponível para este endereço");
     $("cep").value = formatCep(selected.cep);
-    if (selected.district && !$("district").value.trim()) $("district").value = selected.district;
+    if (selected.district) $("district").value = selected.district; // CEP e bairro vêm da mesma consulta: um endereço novo troca os dois
     if (documentReadState) documentReadState.geocode = "OpenStreetMap/Nominatim";
     status.innerHTML = `CEP ${escapeHtml(formatCep(selected.cep))}${selected.district ? ` · ${escapeHtml(selected.district)}` : ""} preenchido. Confira. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
     calculate();
@@ -109,7 +107,7 @@ async function readMatricula(event) {
   try {
     const result = await globalThis.AVMMatricula.read(file, ({ message }) => setReaderStatus("busy", message));
     $("address").value = result.address || "";
-    $("private-area").value = result.area ? String(result.area) : "";
+    $("area").value = result.area ? String(result.area) : "";
     $("cep").value = result.cep ? formatCep(result.cep) : "";
     documentReadState = {
       fileName: result.fileName,
@@ -121,8 +119,9 @@ async function readMatricula(event) {
     };
     const found = [result.address ? "endereço" : null, result.area ? `${result.areaLabel.toLocaleLowerCase("pt-BR")} ${areaNumber.format(result.area)} m²` : null].filter(Boolean);
     const warning = result.warning ? ` ${result.warning}.` : "";
-    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados. A área lida é a privativa da matrícula e foi para o campo dela; o cálculo pede a área construída do IPTU.${warning}`);
+    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados. Só a área privativa é usada; áreas total, comum, útil ou construída são ignoradas.${warning}`);
     calculate();
+    if (result.address && !result.cep) locateAddress(true); // matrícula sem CEP: completa pelo endereço lido
   } catch (error) {
     setReaderStatus("error", error.message);
     AvmCommon.report("ocr_failed", { message: error.name }); // só o tipo do erro: mensagens de biblioteca podem citar o documento
@@ -142,11 +141,9 @@ function getInputs() {
   const age = numericField("age");
   return {
     address: $("address").value.trim(),
-    complement: $("complement").value.trim(),
     district: $("district").value.trim(),
     cep: formatCep($("cep").value),
     cep8: cepDigits($("cep").value),
-    privateArea: numericField("private-area"),
     area: numericField("area"),
     age,
     yearBuilt: Number.isFinite(age) ? model.applicability.base_year - age : NaN,
@@ -177,14 +174,8 @@ function riskList(v, stats, disabled) {
   const risks = [
     "Os preços de treino são os valores declarados nas guias de ITBI, que podem diferir do preço efetivamente pago.",
     "Condomínio, dormitórios, banheiros, vagas, andar, vista e estado de conservação não entram no modelo.",
-    "O modelo usa a área construída do cadastro do IPTU. Se a área informada foi a privativa da matrícula, a estimativa parte de uma definição diferente da usada no treino.",
+    "A área informada é a privativa; as transações que treinaram o modelo trazem a área construída do cadastro do IPTU, que inclui a fração das áreas comuns. Por partir de uma definição menor de área, a estimativa tende a ficar abaixo do valor de mercado.",
   ];
-  if (Number.isFinite(v.privateArea) && Number.isFinite(v.area) && v.area > 0) {
-    const ratio = v.privateArea / v.area;
-    if (ratio < PRIVATE_AREA_RATIO[0] || ratio > PRIVATE_AREA_RATIO[1]) {
-      risks.push(`Área privativa (${areaNumber.format(v.privateArea)} m²) e área construída (${areaNumber.format(v.area)} m²) em proporção atípica: confira se a construída é a do cadastro do IPTU e a privativa é a da matrícula.`);
-    }
-  }
   if (v.documentSource) {
     const parts = [v.documentSource.addressFound ? "o endereço" : null, v.documentSource.areaFound ? "a área" : null].filter(Boolean);
     if (parts.length) risks.push(`${parts.join(" e ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática da matrícula e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} no documento.`);
@@ -226,12 +217,6 @@ async function calculate(event) {
   const seq = ++calcSeq;
   const v = getInputs();
   $("cep").value = v.cep;
-  $("age-note").textContent = Number.isFinite(v.age)
-    ? `Equivale a construção concluída em ${v.yearBuilt}, contando do ano-base ${model.applicability.base_year} do modelo.`
-    : "Informe a idade do edifício em anos.";
-  $("private-area-note").textContent = Number.isFinite(v.privateArea) && Number.isFinite(v.area) && v.area > 0
-    ? `${decimal.format((v.privateArea / v.area) * 100)}% da área construída informada. Não entra no cálculo: serve para conferir o imóvel.`
-    : "Área de uso exclusivo da unidade, como consta na matrícula. Serve para identificar e conferir o imóvel; não é a área que entra no cálculo.";
 
   const required = { area: v.area, age: v.age, fiscal: v.fiscal };
   const missing = v.enabledVariables.filter((key) => key in required && !Number.isFinite(required[key]));
@@ -322,8 +307,8 @@ function renderResult(report) {
   $("local-median").textContent = result.localSupport ? `${money.format(result.localSupport.median_price_m2)}/m²` : "—";
   $("confidence").textContent = `${report.confidence.level} · ${report.confidence.reasons.join(", ")}`;
   $("district-support").textContent = result.localSupport
-    ? `${number.format(result.localSupport.n)} transações da base na região ${result.localSupport.level} ${result.localSupport.key}. O CEP não entra no preço.`
-    : "O CEP não entra no preço; mostra quantas transações da base ficam na mesma região.";
+    ? `${number.format(result.localSupport.n)} transações na região ${result.localSupport.level} ${result.localSupport.key}; CEP é usado apenas como suporte, não no preço.`
+    : "O CEP é usado apenas como suporte, não no preço.";
   const mainRisk = report.risks.find((risk) => /Modelo reduzido|Poucas transações|VM2T/.test(risk)) || report.risks[0];
   $("risk-box").innerHTML = `<strong>Atenção.</strong> ${escapeHtml(mainRisk)}`;
 
@@ -332,15 +317,14 @@ function renderResult(report) {
   $("report-estimate").textContent = `valor central ${money.format(result.estimate)}`;
   const used = (key, value) => (variables.disabled.includes(key) ? "não usada nesta estimativa (variável desabilitada)" : value); // VULN-006
   $("report-property").innerHTML = dl([
-    ["Endereço informado", v.address ? `${v.address}${v.complement ? `, ${v.complement}` : ""}, São Paulo/SP` : null],
+    ["Endereço informado", v.address ? `${v.address}, São Paulo/SP` : null],
     ["Bairro", v.district || null],
     ["CEP", v.cep8.length === 8 ? v.cep : null],
-    ["Área privativa (matrícula)", Number.isFinite(v.privateArea) ? `${areaNumber.format(v.privateArea)} m² (não entra no cálculo)` : null],
-    ["Área construída (IPTU)", used("area", `${areaNumber.format(v.area)} m²`)],
+    ["Área privativa", used("area", `${areaNumber.format(v.area)} m²`)],
     ["Idade / ano de conclusão", used("age", `${v.age} ${v.age === 1 ? "ano" : "anos"} / ${v.yearBuilt}`)],
     ["Padrão IPTU", used("pattern", `${v.patternLabel} (código ${v.pattern})`)],
     ["Valor fiscal PGV", used("fiscal", `${money.format(v.fiscal)}/m² de terreno (VM2T informado)`)],
-    ["Enquadramento declarado", `${report.operation.financing} · recursos ${report.operation.funds} (não altera a estimativa)`],
+    ["Sistema da operação", `${report.operation.financing} · recursos ${report.operation.funds} (não altera a estimativa)`],
     ["Variáveis ativas", variables.enabled.map((item) => VARIABLE_LABELS[item]).join(", ")],
     ["Variáveis desabilitadas", variables.disabled.length ? variables.disabled.map((item) => VARIABLE_LABELS[item]).join(", ") : "Nenhuma"],
     ["Origem do preenchimento", v.documentSource ? `${v.documentSource.fileName} · ${v.documentSource.method}` : "Informação manual"],
@@ -401,10 +385,8 @@ function updateVariableControls(changedInput) {
 function resetExample() {
   documentReadState = null;
   $("address").value = EXAMPLE.address;
-  $("complement").value = EXAMPLE.complement;
   $("district").value = EXAMPLE.district;
   $("cep").value = EXAMPLE.cep;
-  $("private-area").value = EXAMPLE.privateArea;
   $("area").value = EXAMPLE.area;
   $("age").value = EXAMPLE.age;
   $("pattern").value = EXAMPLE.pattern;
@@ -412,7 +394,7 @@ function resetExample() {
   $("financing").value = EXAMPLE.financing;
   $("funds").value = EXAMPLE.funds;
   // #declared fica como está: o exemplo preenche, mas só o usuário confirma (VULN-010)
-  $("address-lookup-status").textContent = "Só sai do seu navegador se você clicar em Localizar CEP: o endereço é então enviado ao OpenStreetMap (Nominatim) para preencher o CEP.";
+  $("address-lookup-status").textContent = "Ao preencher ou alterar o endereço, o aplicativo consulta automaticamente CEP e bairro.";
   setReaderStatus("", "Nenhum documento selecionado.");
   document.querySelectorAll("[data-variable]").forEach((input) => { input.checked = true; });
   updateVariableControls();
@@ -443,7 +425,8 @@ async function init() {
   $("valuation-form").addEventListener("submit", calculate);
   $("valuation-form").addEventListener("input", debounce(calculate, 180));
   $("matricula-file").addEventListener("change", readMatricula);
-  $("lookup-address").addEventListener("click", locateAddress);
+  $("lookup-address").addEventListener("click", () => locateAddress(false));
+  $("address").addEventListener("change", () => locateAddress(true)); // sai do campo com o endereço alterado
   $("cep").addEventListener("blur", () => { $("cep").value = formatCep($("cep").value); });
   document.querySelectorAll("[data-variable]").forEach((input) => {
     input.addEventListener("change", () => {
