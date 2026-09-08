@@ -285,5 +285,6 @@
     return { type, ...fields, method, warning, fileName: file.name };
   }
 
-  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, parsePtNumber, read, resolveAssetUrl });
+  const isComplete = (type, fields) => Boolean(fields) && READERS[type].complete(fields); // a mesma regra que decide o OCR no site e no Worker
+  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, isComplete, parsePtNumber, read, resolveAssetUrl });
 }(typeof window !== "undefined" ? window : globalThis));
