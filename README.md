@@ -19,7 +19,7 @@ Produção: https://avm.heybrain.uk · Metodologia: https://avm.heybrain.uk/meto
 
 - `site/` fonte do site estático (HTML, CSS, JS, `assets/model.json`, vendor auto-hospedado)
 - `dist/` saída de `npm run build` (fingerprint nos assets, `version.json`); ignorado pelo git
-- `src/worker.js` Worker mínimo: só `POST /api/erro`
+- `src/worker.js` Worker: `POST /api/erro` e o handler `email()` da estimativa por e-mail (`src/email.js` é o pipeline; `site/assets/report.js` monta o relatório para site e e-mail)
 - `train_model.py` treino (Ridge hedônico, 15 modelos, conformal); `data/sources.lock.json` hashes das fontes
 - `scripts/` validador do `model.json`, fixture de paridade, geração das imagens
 - `tests/` paridade Python↔JS, limites de aplicabilidade, validador
