@@ -17,7 +17,7 @@ navegador ── GET / ──▶ Cloudflare edge ──▶ Workers Static Assets
    │                                        └─ 404.html, html_handling auto-trailing-slash
    ├── GET /assets/model.<sha8>.json (preload; 8 KB brotli) → equação em predict.js → faixa 80%
    ├── OCR opcional: pdf.js + tesseract.js com core WASM e idioma pt embarcados (vendor versionado)
-   ├── clique em "Localizar CEP" (opcional) → nominatim.openstreetmap.org (única saída de dado do usuário)
+   ├── endereço preenchido/alterado (ou clique em "Localizar") → nominatim.openstreetmap.org (única saída de dado do usuário)
    └── POST /api/erro (aviso técnico anônimo) ──▶ src/worker.js ──▶ Workers Logs (3 dias no Free)
 ```
 
@@ -38,7 +38,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 | Recusa antes do cálculo | Fora do domínio de treino não há estimativa: extrapolação silenciosa era o pior defeito do v7. |
 | Faixa antes do ponto | O número redondo sozinho passa precisão que o modelo não tem. Cobertura nominal vem do modelo. |
 | Posicionamento público, sem SFH/SFI/SBPE | Decisão do dono do projeto. O v7 falava com instituição de crédito; o aviso legal (NBR 14653-2) é o oposto disso. |
-| Nominatim mantido, só por clique | Decisão do dono do projeto. Sem gravação em `localStorage`, sem Referer, texto explícito na tela e na privacidade; `connect-src` libera só esse host. |
+| Nominatim consultado ao sair do campo de endereço | Decisão do dono do projeto. Uma consulta por endereço, nunca durante a digitação; sem gravação em `localStorage`, sem Referer, texto explícito na tela e na privacidade; `connect-src` libera só esse host. |
 | OCR embarcado (core WASM + português), só variantes SIMD e relaxed-SIMD | Regra "sem CDN de terceiros". 3,9 MB por variante, carregados só quando o usuário abre uma matrícula digitalizada. Navegador sem WASM SIMD (Safari < 16.4) fica sem OCR, mas lê PDF com texto. |
 | `intent: "print"` na renderização para OCR | O modo padrão do pdf.js usa `requestAnimationFrame` e trava em aba oculta. |
 | CSP com `'wasm-unsafe-eval'` e Nominatim em `connect-src` | Únicas exceções à política do prompt; a primeira compila WebAssembly (não libera `eval`), a segunda é a geocodificação escolhida. Sem `unsafe-inline`: alturas de gráfico via CSSOM. |
@@ -55,7 +55,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 
 Cabeçalhos em toda resposta de asset (`site/_headers`): CSP fechada, `nosniff`, `Referrer-Policy`,
 `Permissions-Policy`, COOP e CORP. HSTS de 180 dias na zona e também em `_headers` (sem preload). Sem cookies, sem
-`localStorage`, sem analytics. Dados do imóvel e matrícula ficam no navegador; endereço sai só por clique.
+`localStorage`, sem analytics. Dados do imóvel e matrícula ficam no navegador; o endereço sai ao ser preenchido ou alterado, para o Nominatim, e nada mais.
 
 ## Custo
 
