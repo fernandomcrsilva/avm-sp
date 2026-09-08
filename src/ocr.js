@@ -153,7 +153,8 @@ const MIB = 1024 * 1024;
 // PDF: uma página por vez em memória — pageImages extrai a imagem da página e já a codifica em PNG (o `transform`
 // abaixo) antes de ler a página seguinte, descartando os pixels brutos no caminho; depois transcreve todas as
 // páginas (agora só PNGs) em paralelo. Imagem anexada: vai como está. Falha numa página não derruba as outras;
-// nada legível → { text: "", pages: 0 }.
+// nada legível → { text: "", pages: 0, attempted: 0 }. `pages` = transcrições bem-sucedidas; `attempted` = chamadas
+// feitas ao modelo, o que conta para o orçamento (Ruling 11: o teto é sobre chamadas, não sobre sucessos).
 export async function ocrDocument(ai, { bytes, mimeType }, { maxPages = 4, maxPngBytes = 4 * MIB, maxImageBytes = 5 * MIB } = {}) {
   let images = [];
   if (mimeType === "application/pdf") {
@@ -168,5 +169,5 @@ export async function ocrDocument(ai, { bytes, mimeType }, { maxPages = 4, maxPn
   }
   const texts = await Promise.all(images.map((image) => transcribe(ai, image).catch(() => null)));
   const ok = texts.filter((text) => text !== null);
-  return { text: ok.join("\n"), pages: ok.length };
+  return { text: ok.join("\n"), pages: ok.length, attempted: images.length };
 }

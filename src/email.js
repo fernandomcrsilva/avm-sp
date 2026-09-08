@@ -221,7 +221,9 @@ async function extractTexts(ai, attachments) {
 }
 
 // Segunda passada: documento ilegível ou incompleto ganha a transcrição das páginas (OCR) e é reclassificado.
-// O modelo só produz texto; os campos continuam vindo dos extratores. Orçamento: 4 páginas por documento, 8 por e-mail.
+// O modelo só produz texto; os campos continuam vindo dos extratores. Orçamento: 4 páginas por documento, 8 por
+// e-mail — em CHAMADAS ao modelo (Ruling 11), não em transcrições bem-sucedidas: uma página cujo modelo falha
+// consumiu a chamada do mesmo jeito, então também consome o orçamento.
 export async function ocrPass(ai, texts, docs, log) {
   if (typeof ai?.run !== "function") return docs; // sem binding de visão (fakes da Entrega 1, ou deploy sem AI): passa os docs como vieram
   const { isComplete } = globalThis.AVMMatricula;
@@ -232,9 +234,9 @@ export async function ocrPass(ai, texts, docs, log) {
     const source = texts[i];
     if (!doc.unreadable && isComplete(doc.type, doc.fields)) continue;
     if (!source.bytes) continue;
-    const { text, pages } = await ocrDocument(ai, { bytes: source.bytes, mimeType: source.mimeType }, { maxPages: Math.min(LIMITS.maxOcrPagesPerDoc, budget), maxPngBytes: LIMITS.maxPngBytes, maxImageBytes: LIMITS.maxImageBytes });
-    budget -= pages;
-    log.ocr_pages += pages;
+    const { text, pages, attempted } = await ocrDocument(ai, { bytes: source.bytes, mimeType: source.mimeType }, { maxPages: Math.min(LIMITS.maxOcrPagesPerDoc, budget), maxPngBytes: LIMITS.maxPngBytes, maxImageBytes: LIMITS.maxImageBytes });
+    budget -= attempted;
+    log.ocr_pages += attempted;
     if (!text) continue;
     const merged = source.text.trim() ? `${source.text}\n${text}` : text;
     const method = source.text.trim() && source.method === "texto do PDF" ? "texto do PDF + OCR (Workers AI)" : "OCR (Workers AI)";

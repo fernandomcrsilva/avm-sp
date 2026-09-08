@@ -150,6 +150,7 @@ test("ocrDocument: PDF escaneado de 3 páginas → uma transcrição por página
   const ai = aiFalso("linha");
   const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 3 }), mimeType: "application/pdf" }, { maxPages: 2 });
   assert.equal(out.pages, 2);
+  assert.equal(out.attempted, 2);
   assert.equal(ai.calls.length, 2);
   assert.equal(out.text, "linha\nlinha");
   for (const call of ai.calls) assert.equal(JSON.stringify(call.input).includes("data:image/png;base64,"), true);
@@ -159,10 +160,10 @@ test("ocrDocument: imagem anexada vai direto ao modelo, sem recodificar; acima d
   const ai = aiFalso("texto da foto");
   const jpeg = Uint8Array.of(255, 216, 255, 224);
   const out = await ocrDocument(ai, { bytes: jpeg, mimeType: "image/jpeg" }, {});
-  assert.deepEqual(out, { text: "texto da foto", pages: 1 });
+  assert.deepEqual(out, { text: "texto da foto", pages: 1, attempted: 1 });
   assert.equal(JSON.stringify(ai.calls[0].input).includes("data:image/jpeg;base64,/9j/4A=="), true);
   const grande = await ocrDocument(aiFalso(), { bytes: new Uint8Array(5 * 1024 * 1024 + 1), mimeType: "image/jpeg" }, {});
-  assert.deepEqual(grande, { text: "", pages: 0 });
+  assert.deepEqual(grande, { text: "", pages: 0, attempted: 0 });
 });
 
 test("ocrDocument: falha do modelo numa página não derruba as outras; PDF sem imagem → vazio", async () => {
@@ -170,8 +171,9 @@ test("ocrDocument: falha do modelo numa página não derruba as outras; PDF sem 
   const ai = { run: async () => { n += 1; if (n === 1) throw new Error("modelo indisponível"); return { response: `p${n}` }; } };
   const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 2 }), mimeType: "application/pdf" }, {});
   assert.equal(out.pages, 1);
+  assert.equal(out.attempted, 2);
   assert.equal(out.text, "p2");
-  assert.deepEqual(await ocrDocument(aiFalso(), { bytes: new TextEncoder().encode("%PDF-1.4 lixo"), mimeType: "application/pdf" }, {}), { text: "", pages: 0 });
+  assert.deepEqual(await ocrDocument(aiFalso(), { bytes: new TextEncoder().encode("%PDF-1.4 lixo"), mimeType: "application/pdf" }, {}), { text: "", pages: 0, attempted: 0 });
 });
 
 test("pageImages: transform roda por página, antes de a próxima ser extraída", async () => {
@@ -187,6 +189,6 @@ test("pageImages: transform roda por página, antes de a próxima ser extraída"
 test("ocrDocument: página cujo PNG não cabe no teto é descartada, as outras seguem", async () => {
   const ai = aiFalso("ok");
   const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 2 }), mimeType: "application/pdf" }, { maxPngBytes: 10 }); // teto absurdo: nenhum PNG cabe
-  assert.deepEqual(out, { text: "", pages: 0 });
+  assert.deepEqual(out, { text: "", pages: 0, attempted: 0 });
   assert.equal(ai.calls.length, 0);
 });

@@ -29,7 +29,7 @@ export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do
 
 const raw = (options) => new TextEncoder().encode(mime(options)).buffer;
 
-test("parseInbound: PDFs e imagens entram; assinatura inline (related) e outros tipos vão para ignorados", async () => {
+test("parseInbound: PDFs e imagens entram; outros tipos vão para ignorados", async () => {
   const nomeLongo = `${"a".repeat(300)}.pdf`;
   const parsed = await parseInbound(raw({ attachments: [
     ["iptu.pdf", "application/pdf", "%PDF-1.4 carne"],
@@ -268,6 +268,15 @@ test("OCR: teto de 8 páginas por e-mail e 4 por documento", async () => {
   const out = await processEmail({ raw: raw({ attachments: [escaneado("a.pdf", 6), escaneado("b.pdf", 6), escaneado("c.pdf", 6)] }), subject: "x" }, { ...deps, ai });
   assert.equal(ai.runs.length, 8); // 4 + 4 + 0
   assert.equal(out.log.ocr_pages, 8);
+});
+
+test("OCR: falha do modelo também consome o orçamento — nunca mais de 8 chamadas por e-mail", async () => {
+  let calls = 0;
+  const ai = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: "" })), run: async () => { calls += 1; throw new Error("modelo indisponível"); } };
+  const out = await processEmail({ raw: raw({ attachments: [escaneado("a.pdf", 6), escaneado("b.pdf", 6), escaneado("c.pdf", 6)] }), subject: "x" }, { ...deps, ai });
+  assert.equal(calls, 8); // 4 + 4 + 0, mesmo sem nenhuma transcrição bem-sucedida
+  assert.equal(out.log.ocr_pages, 8);
+  assert.equal(out.outcome, "unreadable");
 });
 
 test("OCR: sem imagem nenhuma no PDF → continua 'não lido', sem chamar o modelo", async () => {
