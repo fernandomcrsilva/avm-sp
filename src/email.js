@@ -16,6 +16,7 @@ export const LIMITS = Object.freeze({
   maxTextChars: 200_000, // teto do texto extraído por documento
   maxOcrPagesPerDoc: 4,      // como o site (MAX_OCR_PAGES)
   maxOcrPagesPerEmail: 8,    // spec 5.4: ≤ 8 chamadas ao modelo por e-mail
+  minImageBytes: 20 * 1024,  // logotipo de assinatura tem poucos KB; uma página escaneada, dezenas — abaixo disto vai para ignorados
   maxImageBytes: 5 * 1024 * 1024,
   maxPngBytes: 4 * 1024 * 1024,
 });
@@ -44,6 +45,12 @@ export async function parseInbound(raw) {
       ignored.push(fileName);
       continue;
     }
+    // imagem avulsa (não PDF) só entre 20 KiB e 5 MiB: abaixo, é logotipo de assinatura; acima, ocrDocument
+    // descartaria em silêncio (maxImageBytes) — aqui vira "ignorado" visível na resposta.
+    if (mimeType !== PDF_TYPE && (bytes.length < LIMITS.minImageBytes || bytes.length > LIMITS.maxImageBytes)) {
+      ignored.push(fileName);
+      continue;
+    }
     attachments.push({ fileName, mimeType, bytes });
   }
   return {
@@ -69,12 +76,15 @@ export function ambiguityOf(docs) {
 // Cada texto vira um documento classificado (carnê ou matrícula) com os campos que o leitor do site extrai.
 // Texto curto = PDF sem camada de texto (na Entrega 2 é o gatilho do OCR). Dois do mesmo tipo = ambíguo.
 export function readDocuments(texts) {
-  const { detectDocumentType, extractFields, extractIptuFields } = globalThis.AVMMatricula;
+  const { detectDocumentType, extractFields, extractIptuFields, isEmpty } = globalThis.AVMMatricula;
   const docs = texts.map(({ fileName, text, method }) => {
     const clean = String(text || "").slice(0, LIMITS.maxTextChars);
-    const unreadable = clean.trim().length < LIMITS.minTextChars;
+    const short = clean.trim().length < LIMITS.minTextChars;
     const type = detectDocumentType(clean);
-    const fields = unreadable ? null : (type === "iptu" ? extractIptuFields(clean) : extractFields(clean));
+    const fields = short ? null : (type === "iptu" ? extractIptuFields(clean) : extractFields(clean));
+    // texto longo sem nenhum campo (transcrição ruim, página em branco) também é ilegível — não pode virar uma
+    // "matrícula" fantasma
+    const unreadable = short || isEmpty(type, fields);
     return { fileName, type, method, fields, unreadable, apartment: type === "matricula" && /\bapartamento\b/iu.test(clean) };
   });
   return { docs, ambiguous: ambiguityOf(docs) };
@@ -189,8 +199,8 @@ export function compose(kind, data) {
     return render(subject, [HEADER, unreadableLine(data.unreadable), "Envie o PDF original digital.", FOOTER]);
   }
   if (kind === "ambiguous") {
-    const what = data.ambiguous === "iptu" ? "mais de um carnê de IPTU" : "mais de uma matrícula";
-    return render(subject, [HEADER, `Foram encontrados ${what} entre os anexos. Envie um imóvel por e-mail.`, FOOTER]);
+    const what = data.ambiguous === "iptu" ? "Foi encontrado mais de um documento de IPTU" : "Foi encontrada mais de uma matrícula";
+    return render(subject, [HEADER, `${what} entre os anexos. Envie um imóvel por e-mail.`, FOOTER]);
   }
   throw new Error(`compose: tipo desconhecido ${kind}`);
 }
@@ -267,6 +277,7 @@ export async function processEmail({ raw, subject }, deps) {
   const inbound = await parseInbound(raw);
   const texts = await extractTexts(deps.ai, inbound.attachments);
   const log = { documents: texts.length, unreadable: 0, ocr_pages: 0 };
+  // primeira passada: só para saber o que precisa de OCR; a ambiguidade é recalculada depois de ocrPass
   const first = readDocuments(texts);
   const docs = await ocrPass(deps.ai, texts, first.docs, log);
   const ambiguous = ambiguityOf(docs);
