@@ -95,9 +95,10 @@ function composePage(found) {
   return usable.reduce((best, image) => (!best || image.width * image.height > best.width * best.height ? image : best), null);
 }
 
-// Uma imagem por página. Páginas sem imagem são puladas; PDF inválido devolve lista vazia (o chamador trata
-// como "não lido").
-export async function pageImages(pdfBytes, maxPages = 4) {
+// Uma imagem por página. `transform` (opcional, assíncrono) roda dentro do laço, página a página — é assim que os
+// pixels brutos de uma página morrem antes de a próxima ser lida (spec §5.4: uma página em memória por vez).
+// Páginas sem imagem são puladas; PDF inválido devolve lista vazia (o chamador trata como "não lido").
+export async function pageImages(pdfBytes, maxPages = 4, transform = async (image) => image) {
   let pdf;
   try {
     pdf = await getDocumentProxy(new Uint8Array(pdfBytes));
@@ -110,7 +111,7 @@ export async function pageImages(pdfBytes, maxPages = 4) {
     for (let page = 1; page <= pageCount; page += 1) {
       try {
         const composed = composePage(await extractImages(pdf, page));
-        if (composed) images.push({ ...composed, page });
+        if (composed) images.push(await transform({ ...composed, page }));
       } catch (_) { /* página com imagem que o pdf.js não decodifica (ex.: JPX): pulada */ }
     }
   } finally {
@@ -149,16 +150,19 @@ export async function transcribe(ai, { bytes, mimeType }) {
 
 const MIB = 1024 * 1024;
 
-// PDF: uma página por vez em memória (extrai → PNG → descarta os pixels), depois transcreve todas em paralelo.
-// Imagem anexada: vai como está. Falha numa página não derruba as outras; nada legível → { text: "", pages: 0 }.
+// PDF: uma página por vez em memória — pageImages extrai a imagem da página e já a codifica em PNG (o `transform`
+// abaixo) antes de ler a página seguinte, descartando os pixels brutos no caminho; depois transcreve todas as
+// páginas (agora só PNGs) em paralelo. Imagem anexada: vai como está. Falha numa página não derruba as outras;
+// nada legível → { text: "", pages: 0 }.
 export async function ocrDocument(ai, { bytes, mimeType }, { maxPages = 4, maxPngBytes = 4 * MIB, maxImageBytes = 5 * MIB } = {}) {
   let images = [];
   if (mimeType === "application/pdf") {
-    for (const image of await pageImages(bytes, maxPages)) {
+    const encode = async (image) => {
       let png = await encodePng(image, 1600);
       for (let side = 1200; png.length > maxPngBytes && side >= 600; side -= 300) png = await encodePng(image, side); // página densa: reduz mais
-      if (png.length <= maxPngBytes) images.push({ bytes: png, mimeType: "image/png" });
-    }
+      return png.length <= maxPngBytes ? { bytes: png, mimeType: "image/png" } : null;
+    };
+    images = (await pageImages(bytes, maxPages, encode)).filter(Boolean);
   } else if (bytes.length <= maxImageBytes) {
     images = [{ bytes, mimeType }];
   }
