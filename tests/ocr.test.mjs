@@ -2,6 +2,7 @@
 // e a chamada ao modelo com `ai` falso. Rodar: node --test tests/
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { getDocumentProxy } from "unpdf";
 import { crc32, toBase64, encodePng, pageImages } from "../src/ocr.js";
 import { scannedPdf } from "./fixtures/pdf.mjs";
 
@@ -104,4 +105,21 @@ test("pageImages: página escaneada em faixas é remontada de cima para baixo", 
 
 test("pageImages: PDF inválido → lista vazia, sem lançar", async () => {
   assert.deepEqual(await pageImages(new TextEncoder().encode("%PDF-1.4 lixo")), []);
+});
+
+test("pageImages: destrói o documento ao terminar (segunda leitura dos mesmos bytes continua funcionando)", async () => {
+  const bytes = scannedPdf({ pages: 2 });
+  const first = await pageImages(bytes);
+  const second = await pageImages(bytes);
+  assert.equal(first.length, 2);
+  assert.equal(second.length, 2);
+  assert.deepEqual(second.map((i) => i.page), [1, 2]);
+});
+
+test("loadingTask.destroy() existe no proxy do unpdf e pode ser chamado após a leitura", async () => {
+  const pdf = await getDocumentProxy(scannedPdf());
+  assert.equal(typeof pdf.loadingTask.destroy, "function");
+  await pdf.loadingTask.destroy();
+  // Nesta build do unpdf, pdf.getPage(1) após destroy() lança SINCRONAMENTE (TypeError: Cannot read properties of
+  // null (reading 'sendWithPromise')), não devolve uma promise rejeitada — por isso não há assert.rejects aqui.
 });
