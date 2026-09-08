@@ -81,10 +81,10 @@ export function buildInputs(docs, ambiguous = null) {
   const missing = [];
   if (!m.area) missing.push("área privativa (esperada na matrícula)");
   if (!docs.some((d) => d.type === "matricula")) missing.push("nenhuma matrícula identificada entre os anexos");
-  if (!i.yearBuilt) missing.push("ano de construção (esperado no carnê de IPTU)");
-  if (!i.patternCode) missing.push(i.patternLabel ? `padrão cadastral ${i.patternLabel} não é residencial vertical (2-A a 2-E)` : "padrão cadastral (esperado no carnê de IPTU)");
-  if (!i.fiscal) missing.push("valor do m² do terreno (esperado no carnê de IPTU)");
-  if (!docs.some((d) => d.type === "iptu")) missing.push("nenhum carnê de IPTU identificado entre os anexos");
+  if (!i.yearBuilt) missing.push("ano de construção (esperado no IPTU)");
+  if (!i.patternCode) missing.push(i.patternLabel ? `padrão cadastral ${i.patternLabel} não é residencial vertical (2-A a 2-E)` : "padrão cadastral (esperado no IPTU)");
+  if (!i.fiscal) missing.push("valor do m² do terreno (esperado no IPTU)");
+  if (!docs.some((d) => d.type === "iptu")) missing.push("nenhum documento de IPTU identificado entre os anexos");
   const address = m.address || i.address || "";
   if (!address) missing.push("endereço (esperado na matrícula ou no carnê)");
   if (missing.length) return { missing };
