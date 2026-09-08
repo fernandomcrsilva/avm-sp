@@ -149,7 +149,9 @@
     const cep = first(/\bCEP\b[^0-9]{0,6}(\d{5}-?\d{3})\b/iu) || first(/\b(\d{5}-\d{3})\b/u);
     const letterIndex = pattern ? "ABCDE".indexOf(pattern[2].toUpperCase()) : -1;
     return {
-      sql: first(/(\d{3}\.\d{3}\.\d{4}-\d)(?!\d)/u), // setor.quadra.lote-dígito; sem fronteira antes: vem colado no rótulo na camada de texto
+      // setor.quadra.lote-dígito; sem \b no fim porque a camada de texto cola o rótulo seguinte ("…-3Cadastro do
+      // Imóvel:"); (?<![\d.]) evita casar o fim de um número maior
+      sql: first(/(?<![\d.])(\d{3}\.\d{3}\.\d{4}-\d)(?!\d)/u),
       yearBuilt: year >= 1900 && year <= new Date().getFullYear() + 1 ? year : null,
       patternCode: pattern && pattern[1] === "2" && letterIndex >= 0 ? 20 + letterIndex : null,
       patternLabel: pattern ? `${pattern[1]}-${pattern[2].toUpperCase()}` : null,
@@ -286,5 +288,11 @@
   }
 
   const isComplete = (type, fields) => Boolean(fields) && READERS[type].complete(fields); // a mesma regra que decide o OCR no site e no Worker
-  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, isComplete, parsePtNumber, read, resolveAssetUrl });
+  // Nenhum campo extraído (texto longo mas sem sentido: transcrição ruim, página em branco) também é ilegível —
+  // não pode virar uma "matrícula" ou "carnê" fantasma só porque passou do teto de caracteres.
+  const isEmpty = (type, fields) => {
+    const checks = READERS[type].missing(fields || {});
+    return checks.filter(Boolean).length === checks.length;
+  };
+  global.AVMMatricula = Object.freeze({ detectDocumentType, extractFields, extractIptuFields, isComplete, isEmpty, parsePtNumber, read, resolveAssetUrl });
 }(typeof window !== "undefined" ? window : globalThis));

@@ -87,6 +87,17 @@ test("legenda 'Certidão de Dados Cadastrais do Imóvel' sozinha classifica como
   assert.equal(AVMMatricula.detectDocumentType("Figura 2 - Certidão de Dados Cadastrais do Imóvel"), "iptu");
 });
 
+test("SQL: fronteira à esquerda evita casar o fim de um número maior; cola no rótulo seguinte funciona", () => {
+  assert.equal(AVMMatricula.extractIptuFields("IPTU Cadastro 1123.456.0789-0 x").sql, null);
+  assert.equal(AVMMatricula.extractIptuFields("IPTU Cadastro do Imóvel: 123.456.0789-0Cadastro").sql, "123.456.0789-0");
+});
+
+test("isEmpty: nenhum campo extraído é 'vazio'; parcial ou null não conta como vazio/completo", () => {
+  assert.equal(AVMMatricula.isEmpty("matricula", { address: null, area: null }), true);
+  assert.equal(AVMMatricula.isEmpty("iptu", { yearBuilt: 2018, patternCode: null, fiscal: null }), false);
+  assert.equal(AVMMatricula.isEmpty("iptu", null), true);
+});
+
 test("matrícula: área privativa antes do rótulo, 'área de uso privativo' e rótulo com dois-pontos", () => {
   assert.equal(AVMMatricula.extractFields("consta na matrícula de 41,06 m2 de área privativa.").area, 41.06);
   assert.equal(AVMMatricula.extractFields("área de uso privativo de 118,73 m², área de uso comum de 35,89 m²").area, 118.73);
