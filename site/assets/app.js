@@ -11,7 +11,7 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const number = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const areaNumber = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
-const VARIABLE_LABELS = { area: "Área privativa", age: "Idade", pattern: "Padrão IPTU", fiscal: "Valor fiscal PGV" };
+const VARIABLE_LABELS = AvmReport.VARIABLE_LABELS; // rótulos e relatório vivem em report.js, compartilhado com o Worker de e-mail
 const EXAMPLE = { address: "Rua Vergueiro, 2.650", district: "Vila Mariana", cep: "04109-002", area: 78, age: 8, pattern: "22", fiscal: 6500, financing: "SFH", funds: "SBPE" }; // o CEP só mostra a região
 let calcSeq = 0; // a identificação é assíncrona (hash): só a última estimativa iniciada pode renderizar
 
@@ -181,43 +181,6 @@ function getInputs() {
   };
 }
 
-function patternLabel(code) {
-  return model.patterns.find((item) => String(item.code) === String(code))?.label || `código ${code}`;
-}
-
-function localSupport(cep8) {
-  if (cep8.length !== 8) return null;
-  const exact = model.cep4_stats[cep8.slice(0, 4)];
-  if (exact) return { ...exact, level: "CEP4", key: cep8.slice(0, 4) };
-  const broad = model.cep3_stats[cep8.slice(0, 3)];
-  if (broad) return { ...broad, level: "CEP3", key: cep8.slice(0, 3) };
-  return null;
-}
-
-function riskList(v, stats, disabled) {
-  const risks = [
-    "Os preços de treino são os valores declarados nas guias de ITBI, que podem diferir do preço efetivamente pago.",
-    "Condomínio, dormitórios, banheiros, vagas, andar, vista e estado de conservação não entram no modelo.",
-    "A área informada é a privativa; as transações que treinaram o modelo trazem a área construída do cadastro do IPTU, que inclui a fração das áreas comuns. Por partir de uma definição menor de área, a estimativa tende a ficar abaixo do valor de mercado.",
-  ];
-  if (v.documentSource) {
-    const s = v.documentSource;
-    const parts = [s.addressFound && "o endereço", s.areaFound && "a área", s.ageFound && "a idade", s.patternFound && "o padrão", s.fiscalFound && "o valor fiscal"].filter(Boolean);
-    if (parts.length) risks.push(`${parts.join(", ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática de ${s.fileName} e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} nos documentos.`);
-  }
-  if (v.enabledVariables.includes("fiscal")) {
-    risks.push("O VM2T deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; no treino, quadras com várias faces entraram pela mediana.");
-  }
-  if (disabled.length) {
-    risks.push(`Modelo reduzido: ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")} ${disabled.length === 1 ? "não entrou" : "não entraram"} no cálculo, e a faixa é a desse modelo menor.`);
-  }
-  if (v.cep8.length === 8 && (!stats || stats.n < 40)) {
-    risks.push("Poucas transações na região do CEP informado; a faixa reflete o comportamento geral da cidade, não particularidades locais.");
-  }
-  risks.push("Não foram verificadas documentação, titularidade, ônus, ocupação, patologias nem a existência física do imóvel.");
-  return risks;
-}
-
 function showPanel(which) {
   $("model-loading").hidden = which !== "loading";
   $("refusal").hidden = which !== "refusal";
@@ -260,58 +223,11 @@ async function calculate(event) {
     return;
   }
 
-  const reasons = AvmPredict.limitReasons(model, v); // recusa ANTES de calcular
-  if (reasons.length) return refuse(reasons);
-
-  const modelKey = AvmPredict.modelKey(model, v.enabledVariables);
-  const selected = model.models[modelKey];
-  if (!selected) return refuse([{ code: "model", text: "combinação de variáveis sem modelo treinado" }]);
-  const logValue = AvmPredict.logPrice(model, modelKey, v);
-  const interval = AvmPredict.interval(logValue, selected.conformal_q80_log);
-  const areaUsed = v.enabledVariables.includes("area");
-  const priceReason = AvmPredict.priceReason(model, interval.value, areaUsed ? v.area : NaN);
-  if (priceReason) return refuse([priceReason]);
-
-  const stats = localSupport(v.cep8);
-  const disabled = model.variable_order.filter((variable) => !v.enabledVariables.includes(variable));
-  const timestamp = new Date();
-  // Identificação reprodutível: mesmas entradas + mesma versão do modelo = mesma identificação.
-  const digest = await AvmCommon.sha256Hex(JSON.stringify([v.address, v.cep8, v.area, v.yearBuilt, v.pattern, v.fiscal, v.enabledVariables, model.version]));
+  const computed = AvmReport.estimate(model, v); // recusa ANTES de calcular
+  if (computed.refused) return refuse(computed.refused);
+  const report = await AvmReport.build(model, v, computed); // identificação reprodutível (hash) — assíncrona
   if (seq !== calcSeq) return; // outra estimativa começou enquanto o hash era calculado
-  const fingerprint = digest.slice(0, 12).toUpperCase();
-
-  latestReport = {
-    id: `AVM-SP-${timestamp.toISOString().slice(0, 10).replaceAll("-", "")}-${fingerprint}`,
-    issuedAt: timestamp.toISOString(),
-    purpose: "Estimativa estatística de valor, para uso informativo",
-    property: { ...v, patternLabel: patternLabel(v.pattern) },
-    variables: { enabled: v.enabledVariables, disabled, labels: VARIABLE_LABELS, modelKey },
-    operation: { financing: v.financing, funds: v.funds },
-    confidence: AvmPredict.confidence(v, stats, disabled),
-    result: {
-      estimate: Math.round(interval.value),
-      pricePerM2: areaUsed && v.area > 0 ? Math.round(interval.value / v.area) : null, // só com a área no modelo (VULN-006)
-      interval80: [Math.round(interval.low), Math.round(interval.high)],
-      scope: disabled.length ? `Dentro do domínio de treino do modelo reduzido (sem ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")})` : "Dentro do domínio de treino",
-      localSupport: stats,
-    },
-    model: {
-      version: model.version,
-      trainedAt: AvmCommon.isoDate(model.trained_at),
-      algorithm: model.hyperparameters.algorithm,
-      referenceDate: model.reference_date,
-      referenceDateLabel: AvmCommon.monthLabel(model.reference_date),
-      coverageNominal: model.hyperparameters.interval_nominal_coverage_pct,
-      metrics: selected.metrics,
-      defaultMetrics: model.metrics,
-      hyperparameters: model.hyperparameters,
-      libraries: model.libraries,
-      eda: model.eda,
-      source: model.source,
-      pgvSource: model.pgv_source,
-    },
-    risks: riskList(v, stats, disabled),
-  };
+  latestReport = report;
   renderResult(latestReport);
 }
 

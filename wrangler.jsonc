@@ -13,10 +13,20 @@
     "not_found_handling": "404-page"
   },
   // Limite por IP do /api/erro (VULN-005): 5 avisos por minuto. O rate limit da zona não cobre *.workers.dev.
-  "ratelimits": [{ "name": "ERRO_RL", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }],
-  // Workers Logs (retenção de 3 dias no plano Free) com logs de invocação: quem chamou /api/erro e o que o front reportou.
+  "ratelimits": [
+    { "name": "ERRO_RL", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
+    { "name": "EMAIL_RL", "namespace_id": "1002", "simple": { "limit": 3, "period": 60 } } // por remetente autorizado
+  ],
+  // Workers Logs (retenção de 7 dias no plano Paid) com logs de invocação: quem chamou /api/erro e o que o front reportou.
   "observability": { "enabled": true, "logs": { "invocation_logs": true, "head_sampling_rate": 1 } },
   // Produção: Custom Domain (cria o DNS e emite o certificado no deploy). Subdomínio, sem www.
   "routes": [{ "pattern": "avm.heybrain.uk", "custom_domain": true }],
   // avm-sp.heybrain.workers.dev e os aliases de preview ficam ligados (default); noindex via _headers.
+
+  // Estimativa por e-mail (Entrega 1): resposta ao remetente pelo Email Sending; texto dos PDFs pelo Workers AI.
+  "send_email": [{ "name": "EMAIL" }],
+  "ai": { "binding": "AI" },
+  "vars": { "EMAIL_FROM": "avm@heybrain.uk" },
+  // ALLOWED_SENDERS é segredo (wrangler secret put): identifica o cliente da licitação. Formato na RUNBOOK.
+  "limits": { "cpu_ms": 60000 } // folga para o OCR da Entrega 2; a Entrega 1 usa < 1 s
 }
