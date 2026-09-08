@@ -117,7 +117,7 @@ input:focus, select:focus { background: #fff; border-color: var(--cyan); }
 .toggle input:checked + span { color: #006a68; border-color: #7ecbc8; background: #e7f7f6; }
 .toggle input:checked + span::before { content: "✓"; margin-right: 6px; font-weight: 900; }
 .variable-controls { align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafb; }
-.variable-controls legend { padding: 0 4px; }
+.variable-controls legend { width: auto; margin-bottom: 0; padding: 0 6px; } /* legend sobre a borda: os chips ficam na linha de baixo */
 .variable-controls > small { margin-left: auto; color: var(--muted); font-size: .72rem; }
 .form-actions { display: flex; align-items: center; gap: 16px; padding-top: 4px; }
 .form-actions p { margin: 0; color: var(--muted); font-size: .71rem; }
