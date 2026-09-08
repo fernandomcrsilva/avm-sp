@@ -68,7 +68,7 @@ test("certidão de dados cadastrais em ordem de leitura: SQL, ano, padrão e VM2
   assert.equal(f.sql, "123.456.0789-0");
   assert.equal(f.yearBuilt, 2018);
   assert.equal(f.patternCode, 22);
-  assert.equal(f.fiscal, 6500); // "Valores de m²" → "da área incorporada"; os 195.000 do bloco de cálculo não entram
+  assert.equal(f.fiscal, 6500); // Valores de m² → de terreno; os 195.000 do bloco de cálculo não entram
   assert.equal(f.cep, "04109-002");
   assert.equal(f.address, "Rua Vergueiro, 2650");
 });
@@ -80,6 +80,7 @@ test("certidão com camada de texto embaralhada: valor antes do rótulo, SQL col
   assert.equal(f.yearBuilt, 2018);
   assert.equal(f.patternCode, 22);
   assert.equal(f.fiscal, 6500);
+  assert.notEqual(f.fiscal, 195000);
 });
 
 test("legenda 'Certidão de Dados Cadastrais do Imóvel' sozinha classifica como IPTU", () => {

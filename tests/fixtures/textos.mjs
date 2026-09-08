@@ -46,13 +46,13 @@ Dados cadastrais da construção:
 Ano da construção corrigido: 2018
 Padrão da construção: 2-C   Uso: residência
 Valores de m² (R$):
-- da área incorporada: 6.500,00
-- da área não incorporada: 0,00
+- de terreno: 6.500,00
 - da construção: 2.361,00
 Valores para fins de cálculo do IPTU (R$):
 - da área incorporada: 195.000,00
 - da área não incorporada: 0,00
 - da construção: 231.378,00
+Base de cálculo do IPTU: 426.378,00
 `;
 
 // A mesma certidão como a camada de texto do PDF a devolve: colunas embaralhadas e valor colado antes do rótulo.
@@ -64,7 +64,7 @@ Valores de m² (R$):
 231.378,00- da construção:
 0,00- da área não incorporada:
 195.000,00- da área incorporada:
-6.500,00- da área incorporada:
+6.500,00- de terreno:
 Dados cadastrais da construção:
 Área construída (m²): Padrão da construção: 2-C
 2018Ano da construção corrigido:
