@@ -109,10 +109,13 @@ Teste o OCR no navegador (`npx wrangler dev --assets <cópia do dist> --port 878
 
 Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; spec em `docs/superpowers/specs/2026-09-08-email-avm-design.md`.
 
+Sem o segredo `ALLOWED_SENDERS`, **todo** e-mail é recusado — é o estado do Worker logo depois do merge, antes do passo 1.
+
 **Ativar (uma vez, depois de privacidade e termos publicados):**
 1. Remetentes autorizados: `npx wrangler secret put ALLOWED_SENDERS` e colar a lista separada por vírgulas — `@orgao.sp.gov.br` autoriza o domínio exato (sem subdomínios), `pessoa@empresa.com.br` autoriza o endereço. Sem espaços obrigatórios; maiúsculas não importam.
 2. Regra de roteamento: Dashboard → Compute & AI → Email Service → Email Routing → `heybrain.uk` → Routing rules → Create address `avm` → Action **Send to a Worker** → `avm-sp`. (Equivalente: `npx wrangler email routing rules create --help`.)
 3. Teste real: de um endereço que esteja na lista, mandar um e-mail com uma matrícula e um carnê digitais; a resposta chega na mesma conversa em menos de um minuto, com o `.xlsx`.
+4. Conferir no Workers Logs a linha de invocação desse e-mail real: se ela trouxer o endereço do remetente, desligar `invocation_logs` no `wrangler.jsonc` ou ajustar o texto da privacidade antes de liberar o canal — a página afirma que só ficam linhas técnicas sem dados pessoais.
 
 **Trocar remetentes:** repetir `wrangler secret put ALLOWED_SENDERS` com a lista nova (substitui a anterior; vale no próximo e-mail).
 
@@ -126,7 +129,7 @@ Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; spec em `docs/
 
 ## Observabilidade
 
-- Workers Logs (retenção de 3 dias no plano Free; confira no dashboard se o plano mudar): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
+- Workers Logs (retenção de 7 dias no plano Paid; confira no dashboard se o plano mudar): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
   `{"event":"front_error","kind":...}` com `kind` em `model_load_failed | js_error | unhandled_rejection | ocr_failed | refused`.
   Nunca contêm dados do imóvel; em `refused` só o código do limite.
 - Uptime: `.github/workflows/uptime.yml` a cada 30 min (falha = e-mail do GitHub). Rodar à mão: Actions → uptime → Run workflow.
