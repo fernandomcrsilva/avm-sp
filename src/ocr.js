@@ -105,12 +105,16 @@ export async function pageImages(pdfBytes, maxPages = 4) {
     return [];
   }
   const images = [];
-  const pageCount = Math.min(pdf.numPages, maxPages);
-  for (let page = 1; page <= pageCount; page += 1) {
-    try {
-      const composed = composePage(await extractImages(pdf, page));
-      if (composed) images.push({ ...composed, page });
-    } catch (_) { /* página com imagem que o pdf.js não decodifica (ex.: JPX): pulada */ }
+  try {
+    const pageCount = Math.min(pdf.numPages, maxPages);
+    for (let page = 1; page <= pageCount; page += 1) {
+      try {
+        const composed = composePage(await extractImages(pdf, page));
+        if (composed) images.push({ ...composed, page });
+      } catch (_) { /* página com imagem que o pdf.js não decodifica (ex.: JPX): pulada */ }
+    }
+  } finally {
+    await pdf.loadingTask?.destroy?.(); // libera transporte e worker do pdf.js; sem isso o documento fica vivo no isolate
   }
   return images;
 }
