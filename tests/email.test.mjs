@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CARNE, MATRICULA, MATRICULA_CASA } from "./fixtures/textos.mjs";
 import { LIMITS, parseInbound, readDocuments, buildInputs, compose, processEmail } from "../src/email.js";
+import worker, { allowedSender } from "../src/worker.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
 export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [] } = {}) {
@@ -195,4 +196,104 @@ test("processEmail: fora do domínio → recusada com os textos do modelo", asyn
   assert.equal(out.outcome, "refused");
   assert.ok(out.reply.text.includes("fora do domínio do modelo"));
   assert.deepEqual(out.reply.attachments, []);
+});
+
+test("allowedSender: domínio exato ou endereço exato, sem diferenciar maiúsculas", () => {
+  const lista = "@Exemplo.gov.br, pessoa@empresa.com.br";
+  assert.equal(allowedSender("Fulano@exemplo.gov.br", lista), true);
+  assert.equal(allowedSender("pessoa@EMPRESA.com.br", lista), true);
+  assert.equal(allowedSender("x@sub.exemplo.gov.br", lista), false);
+  assert.equal(allowedSender("outra@empresa.com.br", lista), false);
+  assert.equal(allowedSender("", lista), false);
+  assert.equal(allowedSender("a@b.c", ""), false);
+  assert.equal(allowedSender("a@b.c", undefined), false);
+});
+
+function mensagem({ from = "pessoa@exemplo.gov.br", attachments = anexos(["iptu.pdf", "matricula.pdf"]), messageId = "<abc123@exemplo.gov.br>", size } = {}) {
+  const body = mime({ from, attachments, messageId, subject: "Avaliação" });
+  const headers = new Headers({ subject: "Avaliação" });
+  if (messageId) headers.set("message-id", messageId);
+  return {
+    from, to: "avm@heybrain.uk", headers,
+    raw: new Blob([body]).stream(), rawSize: size ?? body.length,
+    rejected: null, setReject(reason) { this.rejected = reason; },
+  };
+}
+
+function ambiente({ allow = true, sendFails = false } = {}) {
+  const sent = [];
+  return {
+    sent,
+    env: {
+      ALLOWED_SENDERS: "@exemplo.gov.br",
+      EMAIL_FROM: "avm@heybrain.uk",
+      EMAIL_RL: { limit: async () => ({ success: allow }) },
+      AI: ai,
+      EMAIL: { send: async (msg) => { if (sendFails) throw new Error("quota"); sent.push(msg); return { messageId: "<resp@heybrain.uk>" }; } },
+      ASSETS: { fetch: async () => new Response("asset") },
+    },
+  };
+}
+
+const logs = [];
+const realLog = console.log;
+test.before(() => { console.log = (line) => logs.push(JSON.parse(line)); globalThis.fetch = fetchFalso; });
+test.after(() => { console.log = realLog; });
+
+test("email(): remetente fora da lista → setReject sem ler nem responder", async () => {
+  const { env, sent } = ambiente();
+  const msg = mensagem({ from: "spam@outro.com" });
+  await worker.email(msg, env, {});
+  assert.match(msg.rejected, /não autorizado/);
+  assert.equal(sent.length, 0);
+  assert.deepEqual(logs.at(-1).event, "email_rejected");
+  assert.equal(logs.at(-1).reason, "unauthorized");
+  assert.equal("from" in logs.at(-1), false);
+});
+
+test("email(): limite e tamanho → setReject", async () => {
+  const limitado = ambiente({ allow: false });
+  const m1 = mensagem();
+  await worker.email(m1, limitado.env, {});
+  assert.match(m1.rejected, /Limite/);
+  const m2 = mensagem({ size: 21 * 1024 * 1024 });
+  await worker.email(m2, ambiente().env, {});
+  assert.match(m2.rejected, /grande demais/);
+  assert.equal(logs.at(-1).reason, "too_large");
+});
+
+test("email(): caminho feliz → um send com Excel, na mesma conversa, e log sem dados pessoais", async () => {
+  const { env, sent } = ambiente();
+  const msg = mensagem();
+  await worker.email(msg, env, {});
+  assert.equal(msg.rejected, null);
+  assert.equal(sent.length, 1);
+  const [mail] = sent;
+  assert.equal(mail.to, "pessoa@exemplo.gov.br");
+  assert.deepEqual(mail.from, { email: "avm@heybrain.uk", name: "AVM SP" });
+  assert.equal(mail.subject, "Re: Avaliação");
+  assert.equal(mail.headers["In-Reply-To"], "<abc123@exemplo.gov.br>");
+  assert.equal(mail.headers.References, "<abc123@exemplo.gov.br>");
+  assert.ok(mail.text.includes("Identificação: AVM-SP-") && mail.html.includes("AVM-SP-"));
+  assert.equal(mail.attachments.length, 1);
+  assert.match(mail.attachments[0].filename, /\.xlsx$/);
+  const log = logs.at(-1);
+  assert.equal(log.event, "email_processed");
+  assert.equal(log.outcome, "report");
+  assert.equal(log.documents, 2);
+  assert.equal(typeof log.ms, "number");
+  assert.equal(JSON.stringify(log).includes("exemplo.gov.br"), false);
+  assert.equal(JSON.stringify(log).includes("iptu.pdf"), false);
+});
+
+test("email(): sem Message-ID não manda cabeçalhos de conversa; send falha → setReject", async () => {
+  const { env, sent } = ambiente();
+  await worker.email(mensagem({ messageId: null }), env, {});
+  assert.equal(sent.at(-1).headers, undefined);
+  const falho = ambiente({ sendFails: true });
+  const msg = mensagem();
+  await worker.email(msg, falho.env, {});
+  assert.match(msg.rejected, /Falha temporária/);
+  assert.equal(logs.at(-1).event, "email_send_failed");
+  assert.equal(logs.at(-1).error, "Error");
 });
