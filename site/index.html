@@ -65,7 +65,7 @@
           <section class="document-reader" aria-labelledby="matricula-title">
             <div>
               <strong id="matricula-title">Preencher pela matrícula</strong>
-              <p>Selecione um PDF ou uma imagem. O documento é lido no seu navegador e não é enviado a nenhum servidor. O aplicativo tenta extrair endereço e área.</p>
+              <p>Selecione um PDF ou uma imagem. O documento é lido no seu navegador e não é enviado a nenhum servidor. O aplicativo tenta extrair o endereço e a área privativa.</p>
             </div>
             <label class="secondary-button file-button" for="matricula-file">Selecionar e ler matrícula
               <input id="matricula-file" type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" hidden>
@@ -74,50 +74,45 @@
           </section>
 
           <div class="field full">
-            <label for="address">Endereço <span class="optional">opcional</span></label>
-            <div class="input-action"><input id="address" name="address" autocomplete="street-address" placeholder="Rua, número"><button id="lookup-address" type="button">Localizar CEP</button></div>
-            <small id="address-lookup-status">Só sai do seu navegador se você clicar em Localizar CEP: o endereço é então enviado ao OpenStreetMap (Nominatim) para preencher o CEP.</small>
+            <label for="address">Logradouro e número</label>
+            <div class="input-action"><input id="address" name="address" autocomplete="street-address" placeholder="Rua, número"><button id="lookup-address" type="button">Localizar</button></div>
+            <small id="address-lookup-status">Ao preencher ou alterar o endereço, o aplicativo consulta automaticamente CEP e bairro.</small>
           </div>
 
           <div class="form-grid two">
-            <div class="field"><label for="complement">Complemento <span class="optional">opcional</span></label><input id="complement" name="complement" autocomplete="address-line2" placeholder="Apto, torre, bloco"><small>Identifica a unidade no relatório. Não entra no cálculo.</small></div>
-            <div class="field"><label for="district">Bairro <span class="optional">opcional</span></label><input id="district" name="district" autocomplete="address-level3" placeholder="Bairro"><small>Preenchido junto com o CEP quando você usa Localizar CEP.</small></div>
+            <div class="field"><label for="district">Bairro</label><input id="district" name="district" autocomplete="address-level3" placeholder="Bairro"></div>
+            <div class="field"><label for="cep">CEP da unidade</label><input id="cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"><small id="district-support">O CEP é usado apenas como suporte, não no preço.</small></div>
           </div>
 
           <div class="form-grid two">
-            <div class="field"><label for="cep">CEP <span class="optional">opcional</span></label><input id="cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"><small id="district-support">O CEP não entra no preço; mostra quantas transações da base ficam na mesma região.</small></div>
-            <div class="field"><label for="private-area">Área privativa (matrícula) <span class="optional">opcional</span></label><div class="input-unit"><input id="private-area" name="private-area" type="number" step="any" inputmode="decimal"><span>m²</span></div><small id="private-area-note">Área de uso exclusivo da unidade, como consta na matrícula. Serve para identificar e conferir o imóvel; não é a área que entra no cálculo.</small></div>
+            <div class="field" data-variable-field="area"><label for="area">Área privativa para precificação</label><div class="input-unit"><input id="area" name="area" type="number" step="any" inputmode="decimal" value="78" required><span>m²</span></div><small>Na leitura da matrícula, somente a área privativa é utilizada; áreas total, comum, útil ou construída são ignoradas.</small></div>
+            <div class="field" data-variable-field="age"><label for="age">Idade</label><div class="input-unit"><input id="age" name="age" type="number" step="1" inputmode="numeric" value="8" required><span>anos</span></div><small>Calculada a partir do ano de conclusão cadastral.</small></div>
           </div>
 
           <div class="form-grid two">
-            <div class="field" data-variable-field="area"><label for="area">Área construída (IPTU)</label><div class="input-unit"><input id="area" name="area" type="number" step="any" inputmode="decimal" value="78" required><span>m²</span></div><small>Esta é a área do cálculo: o modelo foi treinado com a área construída do cadastro do IPTU, que inclui a fração de áreas comuns e por isso costuma ser maior que a privativa.</small></div>
-            <div class="field" data-variable-field="age"><label for="age">Idade do edifício</label><div class="input-unit"><input id="age" name="age" type="number" step="1" inputmode="numeric" value="8" required><span>anos</span></div><small id="age-note">—</small></div>
-          </div>
-
-          <div class="form-grid two">
-            <div class="field" data-variable-field="pattern"><label for="pattern">Padrão cadastral do IPTU</label><select id="pattern" name="pattern"></select><small>Padrão do cadastro municipal, indicado no carnê do IPTU. Não equivale ao estado de conservação.</small></div>
-            <div class="field" data-variable-field="fiscal"><label for="fiscal">Valor fiscal da PGV (VM2T)</label><div class="input-unit prefix"><input id="fiscal" name="fiscal" type="number" step="1" inputmode="numeric" value="6500" required><span>R$</span></div><small>Valor unitário do m² de terreno no Anexo II da PGV, para o trecho de logradouro e a quadra (SQ) do imóvel.</small></div>
-          </div>
-
-          <div class="form-grid two">
-            <div class="field"><label for="financing">Enquadramento da operação</label><select id="financing" name="financing"><option value="SFH">SFH — Sistema Financeiro da Habitação</option><option value="SFI">SFI — Sistema de Financiamento Imobiliário</option></select><small>Registrado no relatório para conferir o enquadramento declarado. Não altera a estimativa de mercado.</small></div>
-            <div class="field"><label for="funds">Origem dos recursos</label><select id="funds" name="funds"><option value="SBPE">SBPE — Sistema Brasileiro de Poupança e Empréstimo</option><option value="Outros">Outros recursos</option></select><small>Registrada no relatório. Também não altera a estimativa de mercado.</small></div>
+            <div class="field" data-variable-field="pattern"><label for="pattern">Padrão cadastral IPTU</label><select id="pattern" name="pattern"></select><small>Padrão vertical do cadastro municipal (2-A a 2-E).</small></div>
+            <div class="field" data-variable-field="fiscal"><label for="fiscal">Valor fiscal PGV (VM2T)</label><div class="input-unit prefix"><input id="fiscal" name="fiscal" type="number" step="1" inputmode="numeric" value="6500" required><span>R$</span></div><small>Valor unitário do terreno no Anexo II, para o Codlog/SQ do imóvel.</small></div>
           </div>
 
           <fieldset class="toggle-group variable-controls">
             <legend>Variáveis incluídas no cálculo</legend>
-            <label class="toggle"><input id="var-area" type="checkbox" data-variable="area" checked><span>Área construída</span></label>
+            <label class="toggle"><input id="var-area" type="checkbox" data-variable="area" checked><span>Área privativa</span></label>
             <label class="toggle"><input id="var-age" type="checkbox" data-variable="age" checked><span>Idade</span></label>
             <label class="toggle"><input id="var-pattern" type="checkbox" data-variable="pattern" checked><span>Padrão IPTU</span></label>
             <label class="toggle"><input id="var-fiscal" type="checkbox" data-variable="fiscal" checked><span>Valor fiscal</span></label>
             <small id="active-model-note">4 variáveis ativas · modelo completo</small>
           </fieldset>
 
+          <div class="form-grid two">
+            <div class="field"><label for="financing">Sistema da operação</label><select id="financing" name="financing"><option value="SFH">SFH</option><option value="SFI">SFI</option></select><small>Registrado no relatório para conferir o enquadramento declarado. Não altera a estimativa de mercado.</small></div>
+            <div class="field"><label for="funds">Origem dos recursos</label><select id="funds" name="funds"><option value="SBPE">SBPE</option><option value="Outros">Outros recursos</option></select><small>Registrada no relatório. Também não altera a estimativa de mercado.</small></div>
+          </div>
+
           <label class="declare"><input id="declared" type="checkbox"><span>Confirmo que é um <strong>apartamento residencial</strong> (uso IPTU <span id="declare-use">—</span>), com inscrição predial ativa (SQL), e que a operação é de <strong>compra e venda</strong>.</span></label>
 
           <div class="form-actions">
             <button class="primary-button" type="submit">Calcular precificação <span aria-hidden="true">→</span></button>
-            <p>Tudo é calculado no seu navegador. Nenhum dado é enviado a servidor, exceto o endereço, e só se você clicar em Localizar CEP.</p>
+            <p>Tudo é calculado no seu navegador. Nenhum dado é enviado a servidor, exceto o endereço, consultado no OpenStreetMap para preencher CEP e bairro.</p>
           </div>
         </form>
 

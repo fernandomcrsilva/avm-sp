@@ -126,7 +126,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   <table>
     <thead><tr><th style="width:38%">Variável</th><th>O que representa</th></tr></thead>
     <tbody>
-      <tr><td>Área construída (IPTU)</td><td>Área construída da unidade no cadastro municipal. É a área que entra no cálculo.</td></tr>
+      <tr><td>Área privativa</td><td>Área de uso exclusivo da unidade, como consta na matrícula. É a área que entra no cálculo.</td></tr>
       <tr><td>Idade</td><td>Quantidade de anos transcorridos desde a construção.</td></tr>
       <tr><td>Padrão cadastral do IPTU</td><td>Classificação construtiva utilizada no cadastro municipal.</td></tr>
       <tr><td>Valor fiscal da PGV</td><td>Valor fiscal por metro quadrado associado à localização cadastral do imóvel.</td></tr>
@@ -153,7 +153,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   <h2>Limites de aplicação</h2>
   <ul>
     <li>Apartamentos residenciais localizados no município de São Paulo.</li>
-    <li>Área construída entre 35 m² e 250 m², inclusive.</li>
+    <li>Área informada entre 35 m² e 250 m², inclusive.</li>
     <li>Idade máxima de 20 anos.</li>
     <li>Valor de avaliação de até R$ 2.250.000,00.</li>
     <li>Operações informadas como SFH ou SFI, com indicação de recursos SBPE ou outros.</li>
@@ -173,36 +173,38 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <h3>Escolher como informar o imóvel</h3>
     <p>Você pode carregar a matrícula ou preencher os campos manualmente.</p>
     <ul><li>Matrícula: selecione um arquivo PDF, JPG, PNG ou WebP.</li>
-        <li>Manual: digite endereço, complemento, bairro, CEP e as áreas.</li></ul>
+        <li>Manual: digite endereço, bairro, CEP e a área privativa.</li></ul>
   </div></div>
   <div class="step"><div class="num"><span>3</span></div><div class="body">
     <h3>Conferir a leitura da matrícula</h3>
     <p>O aplicativo tenta identificar o endereço e a área privativa. Revise os campos e corrija qualquer erro antes de continuar.</p>
-    <ul><li>A área lida da matrícula é a privativa e vai para o campo de conferência.</li>
+    <ul><li>A área lida da matrícula é a privativa e vai para o campo do cálculo; áreas total, comum, útil ou construída são ignoradas.</li>
         <li>Não confunda com área total, comum, global construída ou área do terreno.</li>
         <li>Valores decimais, como 72,45 m², são aceitos.</li></ul>
   </div></div>
   <div class="step"><div class="num"><span>4</span></div><div class="body">
     <h3>Preencher CEP e bairro</h3>
-    <p>Depois de informar o endereço, acione Localizar CEP. O sistema preenche CEP e bairro automaticamente. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</p>
+    <p>Ao terminar de preencher ou alterar o endereço, o aplicativo consulta o OpenStreetMap e preenche CEP e bairro. O botão Localizar repete a consulta quando você quiser. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</p>
   </div></div>
   <div class="box laranja"><strong>Documento digitalizado</strong>
     <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. O documento é lido no próprio navegador e não é enviado a servidor algum.</p>
   </div>
-  <h2>As duas áreas</h2>
+  <h2>A área do cálculo</h2>
   <table>
     <thead><tr><th style="width:38%">Campo</th><th>Como usar</th></tr></thead>
     <tbody>
-      <tr><td>Área privativa (matrícula)</td><td>Área de uso exclusivo da unidade. Serve para identificar e conferir o imóvel e não entra no cálculo.</td></tr>
-      <tr><td>Área construída (IPTU)</td><td>Área da unidade no cadastro municipal, que inclui a fração das áreas comuns. É a área do cálculo, porque é a definição usada nas transações que treinaram o modelo.</td></tr>
+      <tr><td>Área privativa para precificação</td><td>Área de uso exclusivo da unidade, como consta na matrícula. É a área que entra no cálculo. Não use área total, comum, útil, construída nem a do terreno.</td></tr>
     </tbody>
   </table>
+  <div class="box laranja"><strong>Definição de área e viés da estimativa</strong>
+    <p>As transações que treinaram o modelo trazem a área construída do cadastro do IPTU, que inclui a fração das áreas comuns e por isso é maior que a privativa. Como o cálculo recebe a área privativa, a estimativa tende a ficar abaixo do valor de mercado. O relatório registra essa limitação.</p>
+  </div>
 </section>
 
 <section>
   <h1>4. Telas do aplicativo</h1>
   <h2>Tela de preenchimento</h2>
-  <p>Nesta área, o usuário pode carregar a matrícula, informar ou conferir o endereço e revisar CEP, bairro, áreas e idade.</p>
+  <p>Nesta área, o usuário pode carregar a matrícula, informar ou conferir o endereço e revisar CEP, bairro, área privativa e idade.</p>
   <figure>
     <img src="manual-shot-form.png" alt="Tela de preenchimento do AVM SP">
     <figcaption>Exemplo da interface da versão 7. A leitura automática deve sempre ser conferida antes do cálculo.</figcaption>
@@ -264,12 +266,12 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <p>Revise todos os dados, confirme a declaração abaixo do formulário e clique em Calcular precificação. O sistema escolhe o modelo compatível com as variáveis habilitadas e apresenta o resultado na tela.</p>
   </div></div>
   <div class="box"><strong>Antes de clicar em calcular</strong>
-    <p>Confirme endereço, área construída, idade, padrão do IPTU e valor fiscal. Um dado incorreto pode produzir uma estimativa coerente matematicamente, mas inadequada para o imóvel real.</p>
+    <p>Confirme endereço, área privativa, idade, padrão do IPTU e valor fiscal. Um dado incorreto pode produzir uma estimativa coerente matematicamente, mas inadequada para o imóvel real.</p>
   </div>
   <h2>Resumo da conferência</h2>
   <ul>
     <li>☐ O endereço corresponde ao apartamento avaliado.</li>
-    <li>☐ A área do cálculo é a construída do IPTU e foi digitada com a unidade correta.</li>
+    <li>☐ A área do cálculo é a privativa da matrícula e foi digitada com a unidade correta.</li>
     <li>☐ A idade está entre 0 e 20 anos.</li>
     <li>☐ O padrão cadastral foi obtido no IPTU ou cadastro municipal.</li>
     <li>☐ O valor fiscal corresponde à PGV aplicável e à localização correta.</li>
@@ -282,7 +284,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <thead><tr><th style="width:30%">Indicador</th><th>Interpretação</th></tr></thead>
     <tbody>
       <tr><td>Valor estimado</td><td>Ponto central calculado pelo modelo para as informações fornecidas.</td></tr>
-      <tr><td>Valor por m²</td><td>Valor estimado dividido pela área construída informada.</td></tr>
+      <tr><td>Valor por m²</td><td>Valor estimado dividido pela área privativa informada.</td></tr>
       <tr><td>Intervalo de 80%</td><td>Faixa de incerteza calibrada. Não significa que todo imóvel será negociado dentro dela.</td></tr>
       <tr><td>Confiança</td><td>Indicador de suporte e adequação do caso aos dados e variáveis disponíveis. Sobe com as quatro variáveis habilitadas e com transações da base na região do CEP; o motivo aparece ao lado do nível.</td></tr>
       <tr><td>Alertas</td><td>Avisos sobre limites, inconsistências ou situações que exigem análise adicional.</td></tr>
@@ -318,7 +320,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   <h2>Conteúdo mínimo a conferir</h2>
   <ul>
     <li>Data e identificação da avaliação.</li>
-    <li>Endereço, área privativa e área construída.</li>
+    <li>Endereço e área privativa.</li>
     <li>Fontes e variáveis consideradas.</li>
     <li>Valor central, valor unitário e intervalo.</li>
     <li>Versão do modelo, confiança, alertas e limitações.</li>
