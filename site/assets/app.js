@@ -86,10 +86,10 @@ async function locateAddress(auto) {
       geocodeCache.set(key, selected);
     }
     if (!selected.cep) throw new Error("CEP não disponível para este endereço");
-    $("cep").value = formatCep(selected.cep);
+    if (!documentReadState?.cepFromDocument) $("cep").value = formatCep(selected.cep); // o CEP lido do carnê/matrícula é o da unidade: vale mais que o geocodificado
     if (selected.district) $("district").value = selected.district; // CEP e bairro vêm da mesma consulta: um endereço novo troca os dois
     if (documentReadState) documentReadState.geocode = "OpenStreetMap/Nominatim";
-    status.innerHTML = `CEP ${escapeHtml(formatCep(selected.cep))}${selected.district ? ` · ${escapeHtml(selected.district)}` : ""} preenchido. Confira. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
+    status.innerHTML = `CEP ${escapeHtml($("cep").value)}${selected.district ? ` · ${escapeHtml(selected.district)}` : ""} preenchido. Confira. Dados © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.`;
     calculate();
   } catch (error) {
     status.textContent = `Não foi possível localizar: ${error.message}. Informe o CEP manualmente, se quiser.`;
@@ -98,37 +98,61 @@ async function locateAddress(auto) {
   }
 }
 
-async function readMatricula(event) {
-  const input = event.target;
-  const file = input.files?.[0];
-  if (!file) return;
-  input.disabled = true;
-  setReaderStatus("busy", "Preparando a leitura da matrícula…");
-  try {
-    const result = await globalThis.AVMMatricula.read(file, ({ message }) => setReaderStatus("busy", message));
-    $("address").value = result.address || "";
-    $("area").value = result.area ? String(result.area) : "";
-    $("cep").value = result.cep ? formatCep(result.cep) : "";
-    documentReadState = {
-      fileName: result.fileName,
-      method: result.method,
-      addressFound: Boolean(result.address),
-      areaFound: Boolean(result.area),
-      areaLabel: result.areaLabel,
-      geocode: null,
-    };
-    const found = [result.address ? "endereço" : null, result.area ? `${result.areaLabel.toLocaleLowerCase("pt-BR")} ${areaNumber.format(result.area)} m²` : null].filter(Boolean);
-    const warning = result.warning ? ` ${result.warning}.` : "";
-    setReaderStatus("success", `Leitura concluída por ${result.method}: ${found.length ? found.join(" e ") : "nada reconhecido"}. Confira os dados. Só a área privativa é usada; áreas total, comum, útil ou construída são ignoradas.${warning}`);
-    calculate();
-    if (result.address && !result.cep) locateAddress(true); // matrícula sem CEP: completa pelo endereço lido
-  } catch (error) {
-    setReaderStatus("error", error.message);
-    AvmCommon.report("ocr_failed", { message: error.name }); // só o tipo do erro: mensagens de biblioteca podem citar o documento
-  } finally {
-    input.disabled = false;
-    input.value = "";
+// Leva um documento lido para o formulário. A matrícula manda no endereço e na área; o IPTU, na idade, no
+// padrão e no VM2T (o endereço do carnê só entra se a matrícula não trouxe). Devolve o que foi reconhecido.
+function applyDocument(result, state) {
+  const found = [];
+  if (result.type === "iptu") {
+    if (result.yearBuilt) { $("age").value = String(model.applicability.base_year - result.yearBuilt); state.ageFound = true; found.push(`ano de construção ${result.yearBuilt}`); }
+    if (result.patternCode && [...$("pattern").options].some((option) => option.value === String(result.patternCode))) { $("pattern").value = String(result.patternCode); state.patternFound = true; found.push(`padrão ${result.patternLabel}`); }
+    if (result.fiscal) { $("fiscal").value = String(result.fiscal); state.fiscalFound = true; found.push(`VM2T ${money.format(result.fiscal)}/m²`); }
+    if (result.address && !$("address").value.trim()) { $("address").value = result.address; state.addressFound = true; found.push("endereço"); }
+    if (result.cep && !cepDigits($("cep").value)) { $("cep").value = formatCep(result.cep); state.cepFromDocument = true; }
+  } else {
+    if (result.address) { $("address").value = result.address; state.addressFound = true; found.push("endereço"); }
+    if (result.area) { $("area").value = String(result.area); state.areaFound = true; state.areaLabel = result.areaLabel; found.push(`${result.areaLabel.toLocaleLowerCase("pt-BR")} ${areaNumber.format(result.area)} m²`); }
+    if (result.cep) { $("cep").value = formatCep(result.cep); state.cepFromDocument = true; }
   }
+  return found;
+}
+
+// Matrícula e IPTU pelo mesmo input (multiple): cada arquivo é lido, classificado pelo texto e aplicado aos
+// campos que lhe cabem. No primeiro documento o exemplo sai do formulário, para que nenhum valor de amostra
+// passe por valor lido. fileName/method ficam como texto único: é o que o relatório e o Excel mostram.
+async function readDocuments(event) {
+  const input = event.target;
+  const files = [...(input.files || [])];
+  if (!files.length) return;
+  input.disabled = true;
+  if (!documentReadState) ["address", "district", "cep", "area", "age", "fiscal"].forEach((id) => { $(id).value = ""; });
+  const state = documentReadState || { files: [], methods: [], fileName: "", method: "", addressFound: false, areaFound: false, areaLabel: null, ageFound: false, patternFound: false, fiscalFound: false, cepFromDocument: false, geocode: null };
+  const found = new Set(); // matrícula e IPTU podem trazer o mesmo campo (endereço): conta uma vez
+  const notes = [];
+  for (const file of files) {
+    setReaderStatus("busy", `Lendo ${file.name}…`);
+    try {
+      const result = await globalThis.AVMMatricula.read(file, ({ message }) => setReaderStatus("busy", `${file.name}: ${message}`));
+      applyDocument(result, state).forEach((item) => found.add(item));
+      if (result.warning) notes.push(`${file.name}: ${result.warning}`);
+      if (!state.files.includes(result.fileName)) state.files.push(result.fileName);
+      if (!state.methods.includes(result.method)) state.methods.push(result.method);
+      state.fileName = state.files.join(" + ");
+      state.method = state.methods.join(" e ");
+      documentReadState = state;
+    } catch (error) {
+      notes.push(`${file.name}: ${error.message}`);
+      AvmCommon.report("ocr_failed", { message: error.name }); // só o tipo do erro: mensagens de biblioteca podem citar o documento
+    }
+  }
+  if (found.size) {
+    setReaderStatus("success", `Leitura concluída (${state.method}): ${[...found].join(", ")}. Confira os dados. Só a área privativa da matrícula é usada; a área construída do IPTU é ignorada.${notes.length ? ` ${notes.join(". ")}.` : ""}`);
+    calculate();
+    if ($("address").value.trim() && (!cepDigits($("cep").value) || !$("district").value.trim())) locateAddress(true); // completa CEP/bairro pelo endereço lido
+  } else {
+    setReaderStatus("error", notes.join(". ") || "Nada reconhecido nos documentos.");
+  }
+  input.disabled = false;
+  input.value = "";
 }
 
 function activeVariables() {
@@ -177,8 +201,9 @@ function riskList(v, stats, disabled) {
     "A área informada é a privativa; as transações que treinaram o modelo trazem a área construída do cadastro do IPTU, que inclui a fração das áreas comuns. Por partir de uma definição menor de área, a estimativa tende a ficar abaixo do valor de mercado.",
   ];
   if (v.documentSource) {
-    const parts = [v.documentSource.addressFound ? "o endereço" : null, v.documentSource.areaFound ? "a área" : null].filter(Boolean);
-    if (parts.length) risks.push(`${parts.join(" e ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática da matrícula e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} no documento.`);
+    const s = v.documentSource;
+    const parts = [s.addressFound && "o endereço", s.areaFound && "a área", s.ageFound && "a idade", s.patternFound && "o padrão", s.fiscalFound && "o valor fiscal"].filter(Boolean);
+    if (parts.length) risks.push(`${parts.join(", ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática de ${s.fileName} e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} nos documentos.`);
   }
   if (v.enabledVariables.includes("fiscal")) {
     risks.push("O VM2T deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; no treino, quadras com várias faces entraram pela mediana.");
@@ -424,7 +449,7 @@ function debounce(fn, delay) {
 async function init() {
   $("valuation-form").addEventListener("submit", calculate);
   $("valuation-form").addEventListener("input", debounce(calculate, 180));
-  $("matricula-file").addEventListener("change", readMatricula);
+  $("matricula-file").addEventListener("change", readDocuments);
   $("lookup-address").addEventListener("click", () => locateAddress(false));
   $("address").addEventListener("change", () => locateAddress(true)); // sai do campo com o endereço alterado
   $("cep").addEventListener("blur", () => { $("cep").value = formatCep($("cep").value); });
