@@ -133,15 +133,15 @@
       || first(/((?:19|20)\d{2})\s*ano\s+d[aeo]\s+constru[çc][ãa]o(?:\s+corrigido)?/iu)); // camada de texto em colunas: valor antes do rótulo
     const pattern = flat.match(/(?:tipo\s*\/\s*padr[ãa]o|padr[ãa]o(?:\s+d[aeo]\s+constru[çc][ãa]o)?)[^0-9A-Z]{0,15}(\d)\s*[-–/ ]?\s*([A-E])\b/iu)
       || flat.match(/\btipo[^0-9]{0,6}(\d)[^A-Z]{0,25}padr[ãa]o[^A-Z]{0,6}([A-E])\b/iu);
-    // VM2T: carnê ("Valor do m² do Terreno"), certidão em ordem de leitura ("Valores de m² … da área incorporada") ou
-    // certidão embaralhada (valor colado antes de "- da área incorporada:"); neste último caso só um valor na faixa
-    // plausível de VM2T (100–60.000 R$/m²) serve — os totais do bloco de cálculo ficam de fora. ponytail: heurística
-    // de faixa em vez de reconstruir as colunas; se a PGV mudar de ordem de grandeza, ajustar aqui.
+    // VM2T: carnê ("Valor do m² do Terreno"), certidão em ordem de leitura ("Valores de m² (R$): - de terreno: N") ou certidão
+    // com camada de texto embaralhada (valor colado antes de "- de terreno:"). No embaralhado só um valor na faixa plausível
+    // de VM2T (100–60.000 R$/m²) serve — os totais do bloco de cálculo ficam de fora. ponytail: heurística de faixa em vez
+    // de reconstruir as colunas; se a PGV mudar de ordem de grandeza, ajustar aqui.
     const money = `(${NUMBER_PATTERN})`;
     let fiscal = parsePtNumber(first(new RegExp(`valor\\s+(?:unit[áa]rio\\s+(?:do\\s+m\\s*[²2]?\\s+)?|do\\s+m\\s*[²2]?\\s+)d[eo]\\s+terreno[^0-9]{0,20}${money}`, "iu")))
-      || parsePtNumber(first(new RegExp(`valores\\s+de\\s+m\\s*[²2]?[^0-9]{0,160}?da\\s+[áa]rea\\s+incorporada:?\\s*${money}`, "iu")));
+      || parsePtNumber(first(new RegExp(`valores\\s+de\\s+m\\s*[²2]?[^0-9]{0,60}?de\\s+terreno:?\\s*${money}`, "iu")));
     if (!fiscal && /valores\s+de\s+m/iu.test(flat)) {
-      for (const match of flat.matchAll(new RegExp(`${money}\\s*-?\\s*da\\s+[áa]rea\\s+incorporada:`, "giu"))) {
+      for (const match of flat.matchAll(new RegExp(`${money}\\s*-?\\s*de\\s+terreno:`, "giu"))) {
         const value = parsePtNumber(match[1]);
         if (value >= 100 && value <= 60000) { fiscal = value; break; }
       }
