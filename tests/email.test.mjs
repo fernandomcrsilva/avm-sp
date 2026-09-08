@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CARNE, MATRICULA, MATRICULA_CASA } from "./fixtures/textos.mjs";
-import { LIMITS, parseInbound } from "../src/email.js";
+import { LIMITS, parseInbound, readDocuments, buildInputs } from "../src/email.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
 export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [] } = {}) {
@@ -48,4 +48,55 @@ test("parseInbound: sem Message-ID e sem anexos", async () => {
   const parsed = await parseInbound(raw({ messageId: null }));
   assert.equal(parsed.messageId, null);
   assert.deepEqual(parsed.attachments, []);
+});
+
+const textos = (pares) => pares.map(([fileName, text]) => ({ fileName, text, method: "texto do PDF" }));
+
+test("readDocuments classifica e extrai; buildInputs monta v como o site", () => {
+  const { docs, ambiguous } = readDocuments(textos([["iptu.pdf", CARNE], ["matricula.pdf", MATRICULA]]));
+  assert.equal(ambiguous, null);
+  assert.deepEqual(docs.map((d) => d.type), ["iptu", "matricula"]);
+  const out = buildInputs(docs);
+  assert.ok(out.v, JSON.stringify(out));
+  const v = out.v;
+  assert.equal(v.address, "Rua Vergueiro, 2650");
+  assert.equal(v.cep, "04109-002");
+  assert.equal(v.cep8, "04109002");
+  assert.equal(v.area, 78);
+  assert.equal(v.yearBuilt, 2018);
+  assert.equal(v.age, 2026 - 2018);
+  assert.equal(v.pattern, "22");
+  assert.equal(v.fiscal, 6500);
+  assert.equal(v.financing, "SFH");
+  assert.equal(v.funds, "SBPE");
+  assert.equal(v.declared, true);
+  assert.deepEqual(v.enabledVariables, ["area", "age", "pattern", "fiscal"]);
+  assert.equal(v.documentSource.fileName, "iptu.pdf + matricula.pdf");
+  assert.equal(v.documentSource.method, "texto do PDF");
+  assert.equal(v.documentSource.cepFromDocument, true);
+  assert.ok(v.documentSource.areaFound && v.documentSource.ageFound && v.documentSource.patternFound && v.documentSource.fiscalFound && v.documentSource.addressFound);
+});
+
+test("readDocuments: texto curto é 'não lido'; só a matrícula → faltam os campos do carnê", () => {
+  const { docs } = readDocuments(textos([["matricula.pdf", MATRICULA], ["iptu.pdf", "IPTU"]]));
+  assert.equal(docs.find((d) => d.fileName === "iptu.pdf").unreadable, true);
+  const out = buildInputs(docs);
+  assert.deepEqual(out.missing, [
+    "ano de construção (esperado no carnê de IPTU)",
+    "padrão cadastral (esperado no carnê de IPTU)",
+    "valor do m² do terreno (esperado no carnê de IPTU)",
+  ]);
+});
+
+test("buildInputs: sem matrícula → faltam área e endereço; sem 'apartamento' → recusa", () => {
+  const soIptu = readDocuments(textos([["iptu.pdf", CARNE]]));
+  assert.deepEqual(buildInputs(soIptu.docs).missing, ["área privativa (esperada na matrícula)", "nenhuma matrícula identificada entre os anexos"]);
+  const casa = readDocuments(textos([["iptu.pdf", CARNE], ["matricula.pdf", MATRICULA_CASA]]));
+  assert.deepEqual(buildInputs(casa.docs), { notApartment: true });
+});
+
+test("readDocuments: duas matrículas é ambíguo", () => {
+  const out = readDocuments(textos([["a.pdf", MATRICULA], ["b.pdf", MATRICULA], ["iptu.pdf", CARNE]]));
+  assert.equal(out.ambiguous, "matricula");
+  assert.deepEqual(buildInputs(out.docs, out.ambiguous), { ambiguous: "matricula" });
 });

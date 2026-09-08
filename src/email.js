@@ -49,4 +49,80 @@ export async function parseInbound(raw) {
   };
 }
 
+export function formatCep(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : "";
+}
+
+// Cada texto vira um documento classificado (carnê ou matrícula) com os campos que o leitor do site extrai.
+// Texto curto = PDF sem camada de texto (na Entrega 2 é o gatilho do OCR). Dois do mesmo tipo = ambíguo.
+export function readDocuments(texts) {
+  const { detectDocumentType, extractFields, extractIptuFields } = globalThis.AVMMatricula;
+  const docs = texts.map(({ fileName, text, method }) => {
+    const clean = String(text || "").slice(0, LIMITS.maxTextChars);
+    const unreadable = clean.trim().length < LIMITS.minTextChars;
+    const type = detectDocumentType(clean);
+    const fields = unreadable ? null : (type === "iptu" ? extractIptuFields(clean) : extractFields(clean));
+    return { fileName, type, method, fields, unreadable, apartment: type === "matricula" && /\bapartamento\b/iu.test(clean) };
+  });
+  const readable = docs.filter((d) => !d.unreadable);
+  const ambiguous = readable.filter((d) => d.type === "matricula").length > 1 ? "matricula"
+    : readable.filter((d) => d.type === "iptu").length > 1 ? "iptu" : null;
+  return { docs, ambiguous };
+}
+
+// Monta o mesmo objeto que getInputs() monta no site. Matrícula manda no endereço e na área; carnê nas
+// outras três (endereço/CEP do carnê só como reserva). Faltou campo → lista exata, sem adivinhar.
+export function buildInputs(docs, ambiguous = null) {
+  if (ambiguous) return { ambiguous };
+  const matricula = docs.find((d) => d.type === "matricula" && !d.unreadable) || null;
+  const iptu = docs.find((d) => d.type === "iptu" && !d.unreadable) || null;
+  const m = matricula?.fields || {};
+  const i = iptu?.fields || {};
+  const missing = [];
+  if (!m.area) missing.push("área privativa (esperada na matrícula)");
+  if (!docs.some((d) => d.type === "matricula")) missing.push("nenhuma matrícula identificada entre os anexos");
+  if (!i.yearBuilt) missing.push("ano de construção (esperado no carnê de IPTU)");
+  if (!i.patternCode) missing.push(i.patternLabel ? `padrão cadastral ${i.patternLabel} não é residencial vertical (2-A a 2-E)` : "padrão cadastral (esperado no carnê de IPTU)");
+  if (!i.fiscal) missing.push("valor do m² do terreno (esperado no carnê de IPTU)");
+  if (!docs.some((d) => d.type === "iptu")) missing.push("nenhum carnê de IPTU identificado entre os anexos");
+  const address = m.address || i.address || "";
+  if (!address) missing.push("endereço (esperado na matrícula ou no carnê)");
+  if (missing.length) return { missing };
+  if (!matricula.apartment) return { notApartment: true };
+
+  const cep = formatCep(i.cep || m.cep || "");
+  const read = [iptu, matricula];
+  const yearBuilt = i.yearBuilt;
+  return {
+    v: {
+      address,
+      district: "",
+      cep,
+      cep8: cep.replace("-", ""),
+      area: m.area,
+      age: model.applicability.base_year - yearBuilt,
+      yearBuilt,
+      pattern: String(i.patternCode),
+      fiscal: i.fiscal,
+      financing: "SFH",
+      funds: "SBPE",
+      declared: true, // premissa verificada acima: a matrícula descreve um apartamento
+      enabledVariables: [...model.variable_order],
+      documentSource: {
+        fileName: read.map((d) => d.fileName).join(" + "),
+        method: [...new Set(read.map((d) => d.method))].join(" e "),
+        addressFound: true,
+        areaFound: true,
+        areaLabel: m.areaLabel,
+        ageFound: true,
+        patternFound: true,
+        fiscalFound: true,
+        cepFromDocument: Boolean(cep),
+        geocode: null,
+      },
+    },
+  };
+}
+
 export { model }; // o mesmo model.json do site, empacotado no Worker
