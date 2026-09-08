@@ -105,6 +105,25 @@ Teste o OCR no navegador (`npx wrangler dev --assets <cópia do dist> --port 878
   só `Content-Type: application/json` (415), `Content-Length` obrigatório e ≤ 2048 (413), 5 avisos/min por IP pelo binding
   `ERRO_RL` do `wrangler.jsonc` (429). Teste local: `npx wrangler dev` e os `fetch` listados em `docs/aceite-seguranca-*.md`.
 
+## Estimativa por e-mail (avm@heybrain.uk)
+
+Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; spec em `docs/superpowers/specs/2026-09-08-email-avm-design.md`.
+
+**Ativar (uma vez, depois de privacidade e termos publicados):**
+1. Remetentes autorizados: `npx wrangler secret put ALLOWED_SENDERS` e colar a lista separada por vírgulas — `@orgao.sp.gov.br` autoriza o domínio exato (sem subdomínios), `pessoa@empresa.com.br` autoriza o endereço. Sem espaços obrigatórios; maiúsculas não importam.
+2. Regra de roteamento: Dashboard → Compute & AI → Email Service → Email Routing → `heybrain.uk` → Routing rules → Create address `avm` → Action **Send to a Worker** → `avm-sp`. (Equivalente: `npx wrangler email routing rules create --help`.)
+3. Teste real: de um endereço que esteja na lista, mandar um e-mail com uma matrícula e um carnê digitais; a resposta chega na mesma conversa em menos de um minuto, com o `.xlsx`.
+
+**Trocar remetentes:** repetir `wrangler secret put ALLOWED_SENDERS` com a lista nova (substitui a anterior; vale no próximo e-mail).
+
+**Desligar o canal:** desabilitar a regra `avm` no dashboard. O Worker continua no ar para o site.
+
+**Teste local:** `npx wrangler dev` (preview `wrangler-dev`) com `ALLOWED_SENDERS=@exemplo.gov.br` em `.dev.vars`, e `curl --request POST 'http://localhost:8787/cdn-cgi/local/email' --url-query 'from=teste@exemplo.gov.br' --url-query 'to=avm@heybrain.uk' --data-binary @teste.eml` (corpo RFC 5322 com `Message-ID`). O `send_email` é simulado no terminal; anexos binários não aparecem no simulador — o Excel é coberto por `tests/email.test.mjs`.
+
+**Ler o que aconteceu:** Workers Logs, filtrar `event: email_*`. `email_rejected` (`reason`: unauthorized / ratelimit / too_large) não abre o e-mail; `email_processed` traz `outcome` (report / refused / missing / unreadable / ambiguous / error), `documents`, `unreadable`, `ms`; `email_send_failed` = resposta não saiu e o remetente recebeu bounce. Nenhuma linha traz endereço, arquivo ou valores. "Não recebi resposta" → procurar o `outcome`; se não há linha, o e-mail não chegou ao Worker (regra desligada ou MX).
+
+**Limites:** 3 e-mails por minuto por remetente; 20 MB por mensagem; 6 anexos de até 10 MB; só PDF com camada de texto (escaneado → resposta "não lido" até a Entrega 2).
+
 ## Observabilidade
 
 - Workers Logs (retenção de 3 dias no plano Free; confira no dashboard se o plano mudar): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
