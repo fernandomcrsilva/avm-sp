@@ -75,7 +75,9 @@ export default {
     let result;
     try {
       const raw = await new Response(message.raw).arrayBuffer(); // o stream é de uso único
-      result = await processEmail({ raw, subject: message.headers.get("subject") }, { ai: env.AI, fetch: globalThis.fetch });
+      // O cabeçalho Subject bruto vem cru (RFC 2047 quando acentuado); processEmail usa o assunto já
+      // decodificado pelo postal-mime (inbound.subject), então não é preciso — nem correto — repassá-lo aqui.
+      result = await processEmail({ raw }, { ai: env.AI, fetch: globalThis.fetch });
     } catch (error) {
       message.setReject("Erro interno ao processar. Tente novamente.");
       return log("email_processed", { outcome: "error", error: error.name });

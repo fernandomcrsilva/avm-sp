@@ -7,14 +7,19 @@ import { LIMITS, parseInbound, readDocuments, buildInputs, compose, processEmail
 import worker, { allowedSender } from "../src/worker.js";
 
 // Monta um e-mail multipart/mixed em RFC 5322. attachments: [[nome, tipo MIME, conteúdo (string)]].
-export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [] } = {}) {
+export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do apartamento", messageId = "<abc123@exemplo.gov.br>", attachments = [], extraHeaders = {} } = {}) {
   const boundary = "fronteira-avm";
-  const parts = attachments.map(([name, type, content]) => [
-    `--${boundary}`, `Content-Type: ${type}; name="${name}"`, `Content-Disposition: attachment; filename="${name}"`,
+  // RFC 2047: assunto com acento chega decorado assim (é o que a plataforma manda de verdade).
+  const subjectLine = /[^\x00-\x7f]/.test(subject) ? `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=` : subject;
+  const parts = attachments.map(([name, type, content, disposition]) => [
+    `--${boundary}`, `Content-Type: ${type}; name="${name}"`,
+    disposition === "inline" ? `Content-Disposition: inline; filename="${name}"` : `Content-Disposition: attachment; filename="${name}"`,
+    ...(disposition === "inline" ? ["Content-ID: <logo@x>"] : []),
     "Content-Transfer-Encoding: base64", "", Buffer.from(content).toString("base64"),
   ].join("\r\n"));
   return [
-    `From: Pessoa <${from}>`, "To: avm@heybrain.uk", `Subject: ${subject}`, messageId ? `Message-ID: ${messageId}` : null,
+    `From: Pessoa <${from}>`, "To: avm@heybrain.uk", `Subject: ${subjectLine}`, messageId ? `Message-ID: ${messageId}` : null,
+    ...Object.entries(extraHeaders).map(([name, value]) => `${name}: ${value}`),
     "MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${boundary}"`, "",
     `--${boundary}`, "Content-Type: text/plain; charset=utf-8", "", "Seguem os documentos.",
     ...parts, `--${boundary}--`, "",
@@ -23,18 +28,22 @@ export function mime({ from = "pessoa@exemplo.gov.br", subject = "Avaliação do
 
 const raw = (options) => new TextEncoder().encode(mime(options)).buffer;
 
-test("parseInbound: só PDFs e imagens, respeitando os tetos", async () => {
+test("parseInbound: só PDFs entram; imagens (mesmo assinatura inline) e outros tipos vão para ignorados", async () => {
+  const nomeLongo = `${"a".repeat(300)}.pdf`;
   const parsed = await parseInbound(raw({ attachments: [
     ["iptu.pdf", "application/pdf", "%PDF-1.4 carne"],
     ["matricula.PDF", "application/octet-stream", "%PDF-1.4 matricula"], // tipo genérico, extensão .pdf
     ["foto.jpg", "image/jpeg", "jpeg"],
     ["planilha.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "x"],
+    ["image001.png", "image/png", "png", "inline"], // assinatura do Outlook
+    [nomeLongo, "application/pdf", "%PDF-1.4 nome longo"],
   ] }));
   assert.equal(parsed.messageId, "<abc123@exemplo.gov.br>");
   assert.equal(parsed.subject, "Avaliação do apartamento");
-  assert.deepEqual(parsed.attachments.map((a) => [a.fileName, a.mimeType]), [["iptu.pdf", "application/pdf"], ["matricula.PDF", "application/pdf"], ["foto.jpg", "image/jpeg"]]);
+  assert.deepEqual(parsed.attachments.map((a) => [a.fileName, a.mimeType]), [["iptu.pdf", "application/pdf"], ["matricula.PDF", "application/pdf"], [nomeLongo.slice(0, 120), "application/pdf"]]);
   assert.ok(parsed.attachments[0].bytes instanceof Uint8Array && parsed.attachments[0].bytes.length > 0);
-  assert.deepEqual(parsed.ignored, ["planilha.xlsx"]);
+  assert.deepEqual(parsed.ignored, ["foto.jpg", "planilha.xlsx", "image001.png"]);
+  assert.equal(parsed.attachments[2].fileName.length, 120); // truncado a 120
 });
 
 test("parseInbound: anexo acima do teto vai para ignorados; mais de 6 anexos, só os 6 primeiros", async () => {
@@ -190,6 +199,14 @@ test("processEmail: só matrícula → faltou; matrícula de casa → recusa; se
   assert.equal(duas.outcome, "ambiguous");
 });
 
+test("processEmail: e-mail sem anexo → Faltou", async () => {
+  const out = await processEmail({ raw: raw(), subject: "x" }, deps);
+  assert.equal(out.outcome, "missing");
+  assert.ok(out.reply.text.includes("nenhuma matrícula identificada entre os anexos"));
+  assert.ok(out.reply.text.includes("nenhum carnê de IPTU identificado entre os anexos"));
+  assert.deepEqual(out.reply.attachments, []);
+});
+
 test("processEmail: fora do domínio → recusada com os textos do modelo", async () => {
   const grande = { toMarkdown: async (docs) => docs.map((doc) => ({ name: doc.name, data: doc.name === "iptu.pdf" ? CARNE : MATRICULA.replace("78,00 m²", "300,00 m²") })) };
   const out = await processEmail({ raw: raw({ attachments: anexos(["iptu.pdf", "matricula.pdf"]) }), subject: "x" }, { ...deps, ai: grande });
@@ -209,15 +226,21 @@ test("allowedSender: domínio exato ou endereço exato, sem diferenciar maiúscu
   assert.equal(allowedSender("a@b.c", undefined), false);
 });
 
-function mensagem({ from = "pessoa@exemplo.gov.br", attachments = anexos(["iptu.pdf", "matricula.pdf"]), messageId = "<abc123@exemplo.gov.br>", size } = {}) {
-  const body = mime({ from, attachments, messageId, subject: "Avaliação" });
-  const headers = new Headers({ subject: "Avaliação" });
+function mensagem({ from = "pessoa@exemplo.gov.br", attachments = anexos(["iptu.pdf", "matricula.pdf"]), messageId = "<abc123@exemplo.gov.br>", size, extraHeaders = {}, rawThrows = false } = {}) {
+  const subject = "Avaliação";
+  const body = mime({ from, attachments, messageId, subject, extraHeaders });
+  // A plataforma entrega o cabeçalho Subject como o remetente escreveu, codificado em RFC 2047 quando tem acento.
+  const headers = new Headers({ subject: `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`, ...extraHeaders });
   if (messageId) headers.set("message-id", messageId);
-  return {
+  const msg = {
     from, to: "avm@heybrain.uk", headers,
-    raw: new Blob([body]).stream(), rawSize: size ?? body.length,
+    rawSize: size ?? body.length,
     rejected: null, setReject(reason) { this.rejected = reason; },
   };
+  // Getter definido à parte: um spread avaliaria (e explodiria) a propriedade na hora de montar o objeto.
+  if (rawThrows) Object.defineProperty(msg, "raw", { get() { throw new Error("corpo lido"); } });
+  else msg.raw = new Blob([body]).stream();
+  return msg;
 }
 
 function ambiente({ allow = true, sendFails = false } = {}) {
@@ -242,7 +265,7 @@ test.after(() => { console.log = realLog; });
 
 test("email(): remetente fora da lista → setReject sem ler nem responder", async () => {
   const { env, sent } = ambiente();
-  const msg = mensagem({ from: "spam@outro.com" });
+  const msg = mensagem({ from: "spam@outro.com", rawThrows: true }); // .raw explode se for lido: prova que o handler nem tenta
   await worker.email(msg, env, {});
   assert.match(msg.rejected, /não autorizado/);
   assert.equal(sent.length, 0);

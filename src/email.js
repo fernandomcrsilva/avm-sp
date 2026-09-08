@@ -16,24 +16,23 @@ export const LIMITS = Object.freeze({
 });
 
 const PDF_TYPE = "application/pdf";
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+// imagens: Entrega 2 (OCR)
 
 function attachmentType(att) {
   const name = String(att.filename || "").toLocaleLowerCase("pt-BR");
   const type = String(att.mimeType || "").toLocaleLowerCase("pt-BR").split(";")[0].trim();
   if (type === PDF_TYPE || name.endsWith(".pdf")) return PDF_TYPE;
-  if (IMAGE_TYPES.has(type)) return type;
   return null;
 }
 
-// Lê o MIME e separa o que o pipeline aceita (PDF; imagens ficam para a Entrega 2) do que é ignorado.
+// Lê o MIME e separa o que o pipeline aceita (só PDF) do que é ignorado.
 export async function parseInbound(raw) {
   const parsed = await PostalMime.parse(raw);
   const attachments = [];
   const ignored = [];
   for (const att of parsed.attachments || []) {
-    const fileName = att.filename || "anexo";
-    const mimeType = attachmentType(att);
+    const fileName = String(att.filename || "anexo").slice(0, 120);
+    const mimeType = att.related ? null : attachmentType(att); // logo de assinatura (inline/related): sempre ignorado
     const bytes = att.content instanceof Uint8Array ? att.content : new Uint8Array(att.content);
     if (!mimeType || bytes.length === 0 || bytes.length > LIMITS.maxAttachmentBytes || attachments.length >= LIMITS.maxAttachments) {
       ignored.push(fileName);
@@ -194,7 +193,7 @@ const USER_AGENT = "AVM-SP/1 (avm@heybrain.uk)"; // política de uso do Nominati
 async function extractTexts(ai, attachments) {
   const texts = [];
   for (const att of attachments) {
-    if (att.mimeType !== PDF_TYPE) { texts.push({ fileName: att.fileName, text: "", method: "imagem" }); continue; } // imagens: Entrega 2
+    // parseInbound só deixa passar PDF (imagens: Entrega 2, ver PDF_TYPE acima); nada mais chega aqui.
     let text = "";
     try {
       const [result] = await ai.toMarkdown(
