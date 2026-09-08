@@ -173,3 +173,20 @@ test("ocrDocument: falha do modelo numa página não derruba as outras; PDF sem 
   assert.equal(out.text, "p2");
   assert.deepEqual(await ocrDocument(aiFalso(), { bytes: new TextEncoder().encode("%PDF-1.4 lixo"), mimeType: "application/pdf" }, {}), { text: "", pages: 0 });
 });
+
+test("pageImages: transform roda por página, antes de a próxima ser extraída", async () => {
+  const order = [];
+  const out = await pageImages(scannedPdf({ pages: 3 }), 4, async (image) => { order.push(`t${image.page}`); return image.page; });
+  assert.deepEqual(out, [1, 2, 3]);
+  assert.deepEqual(order, ["t1", "t2", "t3"]);
+  // transform que falha numa página só pula aquela página
+  const partial = await pageImages(scannedPdf({ pages: 3 }), 4, async (image) => { if (image.page === 2) throw new Error("falhou"); return image.page; });
+  assert.deepEqual(partial, [1, 3]);
+});
+
+test("ocrDocument: página cujo PNG não cabe no teto é descartada, as outras seguem", async () => {
+  const ai = aiFalso("ok");
+  const out = await ocrDocument(ai, { bytes: scannedPdf({ pages: 2 }), mimeType: "application/pdf" }, { maxPngBytes: 10 }); // teto absurdo: nenhum PNG cabe
+  assert.deepEqual(out, { text: "", pages: 0 });
+  assert.equal(ai.calls.length, 0);
+});
