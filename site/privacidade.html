@@ -54,11 +54,12 @@
       <p>Remetentes previamente autorizados podem enviar a matrícula e o carnê de IPTU para <a href="mailto:avm@heybrain.uk">avm@heybrain.uk</a> e receber a estimativa por resposta automática. Nesse canal o processamento <strong>não</strong> acontece no seu navegador:</p>
       <ul>
         <li><strong>O que é recebido:</strong> a mensagem e os anexos enviados a esse endereço.</li>
-        <li><strong>Onde é processado:</strong> nos servidores da Cloudflare (Workers), em memória, durante o processamento daquela mensagem. O texto dos PDFs é extraído pelo serviço de conversão de documentos da Cloudflare (Workers AI). Nada é gravado: nem a mensagem, nem os anexos, nem o relatório.</li>
-        <li><strong>O que sai:</strong> o endereço do imóvel, para o Nominatim (OpenStreetMap), como no site.</li>
+        <li><strong>Onde é processado:</strong> nos servidores da Cloudflare (Workers), em memória, durante o processamento daquela mensagem. O texto dos PDFs é extraído pelo serviço de conversão de documentos da Cloudflare (Workers AI). Páginas escaneadas e imagens são transcritas por um modelo de visão do Workers AI, também da Cloudflare, que recebe a imagem da página e devolve o texto e que, conforme a política da Cloudflare, não usa nem retém a imagem. Nada é gravado: nem a mensagem, nem os anexos, nem o relatório.</li>
+        <li><strong>O que sai:</strong> o endereço do imóvel, para o Nominatim (OpenStreetMap), como no site. Nenhum dado vai a serviços fora da Cloudflare e da OpenStreetMap Foundation.</li>
         <li><strong>O que é registrado:</strong> linhas técnicas sem dados pessoais — resultado (relatório, recusa, faltou), quantidade de documentos e tempo de processamento — por sete dias.</li>
         <li><strong>Quem pode usar:</strong> só remetentes autorizados; mensagens de outros endereços são devolvidas sem que os anexos sejam abertos.</li>
       </ul>
+      <p>Quando há OCR, o relatório e a resposta avisam que parte do texto foi transcrita automaticamente e deve ser conferida no documento original. A resposta pode levar até dois minutos nesse caso.</p>
       <p>Ao enviar, o remetente declara que se trata de apartamento residencial em compra e venda e aceita os <a href="/termos">termos de uso</a>. A resposta é uma estimativa estatística, não um laudo.</p>
       <h2>6. Seus direitos e contato</h2>
       <p>Como não guardamos dados pessoais, não há o que acessar, corrigir ou excluir do nosso lado. Para qualquer dúvida sobre esta política, ou para apontar um erro no serviço, escreva para <a href="mailto:contato@heybrain.uk">contato@heybrain.uk</a>. Responsável pelo serviço: HeyBrain (heybrain.uk). Esta política segue a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>

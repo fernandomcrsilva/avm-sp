@@ -53,3 +53,11 @@ test("build: identificação estável, patternLabel, avisos de leitura automáti
   assert.equal(a.variables.labels.area, "Área privativa");
   assert.equal(typeof a.model.trainedAt, "string");
 });
+
+test("riskList avisa quando parte do texto veio de OCR", () => {
+  const v = exemplo();
+  v.documentSource.method = "texto do PDF + OCR (Workers AI)";
+  const risks = AvmReport.riskList(v, null, []);
+  assert.ok(risks.some((r) => r.includes("obtida por OCR (Workers AI)")));
+  assert.equal(AvmReport.riskList(exemplo(), null, []).some((r) => r.includes("OCR")), false);
+});

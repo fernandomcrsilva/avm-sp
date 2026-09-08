@@ -31,3 +31,42 @@ Contribuinte nº 042.115.0087-3. AV.1 - Averbação de construção.
 
 // Mesma matrícula sem a palavra "apartamento": o modelo só cobre apartamentos, então isto tem de ser recusado.
 export const MATRICULA_CASA = MATRICULA.replace("apartamento nº 81, localizado no 8º andar do edifício", "prédio residencial");
+
+// Certidão de Dados Cadastrais do Imóvel (portal da PMSP) em ordem de leitura — é o que o OCR devolve.
+export const CERTIDAO = `
+PREFEITURA DE SÃO PAULO
+Certidão de Dados Cadastrais do Imóvel - IPTU 2024
+Cadastro do Imóvel: 123.456.0789-0
+Local do Imóvel: R VERGUEIRO, 2650 AP 81   VILA MARIANA   CEP 04109-002
+Dados cadastrais do terreno:
+Área incorporada (m²): 1.200   Área não incorporada (m²): 0   Área total (m²): 1.200
+Testada (m): 25,00   Fração ideal: 0,0250
+Dados cadastrais da construção:
+Área construída (m²): 98   Área ocupada pela construção (m²): 600
+Ano da construção corrigido: 2018
+Padrão da construção: 2-C   Uso: residência
+Valores de m² (R$):
+- de terreno: 6.500,00
+- da construção: 2.361,00
+Valores para fins de cálculo do IPTU (R$):
+- da área incorporada: 195.000,00
+- da área não incorporada: 0,00
+- da construção: 231.378,00
+Base de cálculo do IPTU: 426.378,00
+`;
+
+// A mesma certidão como a camada de texto do PDF a devolve: colunas embaralhadas e valor colado antes do rótulo.
+export const CERTIDAO_EMBARALHADA = `
+2.361,00- da construção:
+Certidão de Dados Cadastrais do Imóvel - IPTU 2024
+Valores de m² (R$):
+123.456.0789-0Cadastro do Imóvel:
+231.378,00- da construção:
+0,00- da área não incorporada:
+195.000,00- da área incorporada:
+6.500,00- de terreno:
+Dados cadastrais da construção:
+Área construída (m²): Padrão da construção: 2-C
+2018Ano da construção corrigido:
+Local do Imóvel: R VERGUEIRO, 2650 AP 81 CEP 04109-002
+`;

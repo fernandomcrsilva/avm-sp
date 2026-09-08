@@ -49,6 +49,7 @@
       const s = v.documentSource;
       const parts = [s.addressFound && "o endereço", s.areaFound && "a área", s.ageFound && "a idade", s.patternFound && "o padrão", s.fiscalFound && "o valor fiscal"].filter(Boolean);
       if (parts.length) risks.push(`${parts.join(", ")} ${parts.length > 1 ? "foram preenchidos" : "foi preenchido"} por leitura automática de ${s.fileName} e ${parts.length > 1 ? "devem" : "deve"} ser conferido${parts.length > 1 ? "s" : ""} nos documentos.`);
+      if (/OCR/.test(s.method || "")) risks.push("Parte do texto dos documentos foi obtida por OCR (Workers AI) e deve ser conferida no documento original antes de qualquer uso.");
     }
     if (v.enabledVariables.includes("fiscal")) {
       risks.push("O VM2T deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; no treino, quadras com várias faces entraram pela mediana.");

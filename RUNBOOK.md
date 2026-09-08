@@ -123,9 +123,11 @@ Sem o segredo `ALLOWED_SENDERS`, **todo** e-mail é recusado — é o estado do 
 
 **Teste local:** `npx wrangler dev` (preview `wrangler-dev`) com `ALLOWED_SENDERS=@exemplo.gov.br` em `.dev.vars`, e `curl --request POST 'http://localhost:8787/cdn-cgi/local/email' --url-query 'from=teste@exemplo.gov.br' --url-query 'to=avm@heybrain.uk' --data-binary @teste.eml` (corpo RFC 5322 com `Message-ID`). O `send_email` é simulado no terminal; anexos binários não aparecem no simulador — o Excel é coberto por `tests/email.test.mjs`.
 
-**Ler o que aconteceu:** Workers Logs, filtrar `event: email_*`. `email_rejected` (`reason`: unauthorized / ratelimit / too_large) não abre o e-mail; `email_processed` traz `outcome` (report / refused / missing / unreadable / ambiguous / error), `documents`, `unreadable`, `ms`; `email_send_failed` = resposta não saiu e o remetente recebeu bounce. Nenhuma linha traz endereço, arquivo ou valores. "Não recebi resposta" → procurar o `outcome`; se não há linha, o e-mail não chegou ao Worker (regra desligada ou MX).
+**Ler o que aconteceu:** Workers Logs, filtrar `event: email_*`. `email_rejected` (`reason`: unauthorized / ratelimit / too_large) não abre o e-mail; `email_processed` traz `outcome` (report / refused / missing / unreadable / ambiguous / error), `documents`, `unreadable`, `ms`; `email_send_failed` = resposta não saiu e o remetente recebeu bounce. Nenhuma linha traz endereço, arquivo ou valores. "Não recebi resposta" → procurar o `outcome`; se não há linha, o e-mail não chegou ao Worker (regra desligada ou MX). `ocr_pages` > 0 indica que houve transcrição; `unreadable` conta documentos que nem o OCR leu.
 
-**Limites:** 3 e-mails por minuto por remetente; 20 MB por mensagem; 6 anexos de até 10 MB; só PDF com camada de texto (escaneado → resposta "não lido" até a Entrega 2).
+**Limites:** 3 e-mails por minuto por remetente; 20 MB por mensagem; 6 anexos de até 10 MB (PDF, PNG, JPEG ou WebP). PDF com camada de texto é lido direto; escaneado ou imagem passa por OCR no Workers AI (até 4 páginas por documento e 8 por e-mail, ~1–2 min de resposta). Custo do OCR: da ordem de US$ 0,002 por página no Gemma 4 — acompanhar em Compute & AI → Workers AI no dashboard.
+
+**Desligar só o OCR:** não há chave própria; as alavancas são tirar o remetente de `ALLOWED_SENDERS` ou desabilitar a regra de roteamento. Pior caso de custo com um remetente comprometido: 3 e-mails/min × 8 páginas × ~US$ 0,002 ≈ US$ 3/hora — configure um alerta de gasto em Compute & AI → Workers AI. Se o binding recusar uma imagem (payload grande), a página cai como "sem texto legível" — o `ocr_pages` do log continua contando a tentativa.
 
 ## Observabilidade
 
