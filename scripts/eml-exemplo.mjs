@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Gera na saída padrão o e-mail do teste local do RUNBOOK ("Estimativa por e-mail"): carnê e matrícula
 // sintéticos (tests/fixtures/textos.mjs, sem dado pessoal) como PDFs com camada de texto, num multipart/mixed
 // com Message-ID. Remetente teste@exemplo.gov.br — o domínio que .dev.vars autoriza.

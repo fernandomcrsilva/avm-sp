@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { extractText, getDocumentProxy } from "unpdf";
 import { textPdf } from "./fixtures/pdf.mjs";
 import { CARNE } from "./fixtures/textos.mjs";
@@ -25,8 +26,8 @@ test("textPdf: caractere fora do Latin-1 vira hífen em vez de quebrar o PDF", a
   assert.match(text, /a - b \(c\) \\ d/);
 });
 
-test("eml-exemplo: gera um e-mail que o pipeline aceita, com os dois PDFs", async () => {
-  const script = new URL("../scripts/eml-exemplo.mjs", import.meta.url).pathname;
+test("eml-exemplo: gera um e-mail que o parseInbound aceita, com os dois PDFs", async () => {
+  const script = fileURLToPath(new URL("../scripts/eml-exemplo.mjs", import.meta.url));
   const eml = execFileSync(process.execPath, [script], { encoding: "utf8" });
   assert.match(eml, /^From: .*teste@exemplo\.gov\.br/m);
   assert.match(eml, /^To: avm@heybrain\.uk/m);
