@@ -159,7 +159,7 @@
       [],
       [cell("OBSERVAÇÃO", 4), cell("DESCRIÇÃO", 4)],
       ["Natureza", "Estimativa estatística gerada automaticamente, sem vistoria e sem análise jurídica. Não é laudo nem avaliação de imóvel na acepção da NBR 14653-2 e não serve para garantia, financiamento, inventário ou fins judiciais."],
-      ["Base", "Somente transações declaradas como 1.Compra e venda em guias de ITBI pagas; não são anúncios."],
+      ["Base", "Somente transações de compra e venda efetivamente declaradas; não são anúncios."],
       ["Condomínio", "O valor da taxa condominial não integra as variáveis do modelo nem influencia a precificação."],
     ];
 
@@ -201,14 +201,7 @@
       ["R² em log — modelo completo", cell(m.defaultMetrics.r2_log, 6)],
       ["MdAPE — modelo completo", cell(m.defaultMetrics.med_ape_pct / 100, 7)],
       ["Variável condomínio", "Excluída do treinamento e da inferência"],
-      ["Vínculo PGV no treinamento", m.pgvSource.training_join],
-      ["VM2T para o imóvel", m.pgvSource.subject_input],
-      ["Cobertura do vínculo PGV", cell(m.pgvSource.pgv_join_coverage_pct / 100, 7)],
-      ["Compras e vendas brutas", cell(m.pgvSource.purchase_sale_rows_raw, 5)],
-      ["Outras naturezas ignoradas", cell(m.pgvSource.other_natures_ignored_raw, 5)],
-      ["Fonte", m.source.name],
-      ["Período das transações", `${m.source.transaction_date_min} a ${m.source.transaction_date_max}`],
-      ["SHA-256 da base", m.source.sha256],
+      ["VM2T para o imóvel", "informar o valor unitário de metro quadrado de terreno do trecho de logradouro do imóvel"],
     ];
 
     const riskRows = [
@@ -219,12 +212,9 @@
     ];
 
     const sourceRows = [
-      [cell("FONTES E REFERÊNCIAS", 3)],
+      [cell("REFERÊNCIAS", 3)],
       [],
       [cell("Fonte", 1), cell("Aplicação", 1), cell("URL", 1)],
-      [m.source.name, "Base oficial de transações declaradas", m.source.page_url],
-      [`Planilha oficial (${m.source.sheets[0]} a ${m.source.sheets.at(-1)})`, "Arquivo usado no treinamento", m.source.download_url],
-      [m.pgvSource.name, "Fonte do VM2T do Anexo II", m.pgvSource.law_url],
       ["OpenStreetMap / Nominatim", "Localização de CEP por endereço, só quando acionada", "https://www.openstreetmap.org/copyright"],
     ];
 
@@ -233,7 +223,7 @@
       { name: "Dados do Imóvel", xml: worksheetXml(propertyRows, { widths: [34, 20, 14, 16, 8, 24, 18, 12, 16, 18, 24, 14, 14, 36, 36], merges: ["A1:O1", "B6:O6"], freezeRow: true, autoFilter: "A3:O4" }) },
       { name: "Modelo", xml: worksheetXml(modelRows, { widths: [34, 72], merges: ["A1:B1"], freezeRow: true }) },
       { name: "Riscos", xml: worksheetXml(riskRows, { widths: [8, 110], merges: ["A1:B1"], freezeRow: true }) },
-      { name: "Fontes", xml: worksheetXml(sourceRows, { widths: [48, 42, 105], merges: ["A1:C1"], freezeRow: true, autoFilter: `A3:C${sourceRows.length}` }) },
+      { name: "Referências", xml: worksheetXml(sourceRows, { widths: [48, 42, 105], merges: ["A1:C1"], freezeRow: true, autoFilter: `A3:C${sourceRows.length}` }) },
     ];
 
     const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

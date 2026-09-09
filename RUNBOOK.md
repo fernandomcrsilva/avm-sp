@@ -72,9 +72,11 @@ Gradual (canário): `npx wrangler versions deploy <nova>@10% <atual>@90% -y`, de
    para subir uma versão, edite `requirements.in` e recompile. Grupos de CEP com menos de 5 transações não entram em `cep4_stats`.
    Saída: `site/assets/model.json` e `tests/parity_fixture.json` (referência scikit-learn). O teste de paridade **exige**
    a fixture do scikit-learn com o sha256 do `model.json`: um `model.json` editado à mão, ou uma fixture "formula" de
-   `scripts/parity_fixture.py`, reprova no CI (VULN-004). O sha256 vai para `/version.json` e para `/metodologia`.
+   `scripts/parity_fixture.py`, reprova no CI (VULN-004).
 5. `npm run check` (validador com faixas sãs, paridade 1e-9, build). Se o validador reprovar métricas, não publique.
-6. Confira `/metodologia` localmente (`python3 -m http.server --directory site`): períodos, amostra, MAPE, cobertura e limites vêm todos do `model.json`.
+6. Confira o relatório localmente (`python3 -m http.server --directory site`): amostra, MAPE, cobertura e limites vêm todos do `model.json`.
+   O `model.json` **servido** sai do build sem `source`/`pgv_source` e com a versão sem `-ITBI-PGV-` (build.mjs): as fontes da base
+   de treino não são publicadas, e por isso o `model_sha256` de `/version.json` é o do arquivo servido, não o do arquivo do repositório.
 7. PR → check verde → merge: o merge publica. O `og-image.png` e os textos não têm números do modelo; não precisam mudar.
 
 ## Atualizar o vendor (pdf.js, tesseract.js, core WASM, idioma)
