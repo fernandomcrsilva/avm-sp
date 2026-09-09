@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Estimativa estatística do valor de apartamentos residenciais em São Paulo, com faixa de 80% de probabilidade, a partir de transações reais de ITBI. Calculada inteiramente no seu navegador.">
+  <meta name="description" content="Estimativa estatística do valor de apartamentos residenciais em São Paulo, com faixa de 80% de probabilidade. Calculada inteiramente no seu navegador.">
   <meta name="theme-color" content="#071a2b">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/site.webmanifest">
@@ -13,21 +13,20 @@
   <meta property="og:locale" content="pt_BR">
   <meta property="og:url" content="https://avm.heybrain.uk/">
   <meta property="og:title" content="AVM SP — estimativa de valor de apartamentos em São Paulo">
-  <meta property="og:description" content="Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no seu navegador a partir de transações reais de ITBI. Não é laudo.">
+  <meta property="og:description" content="Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no seu navegador. Não é laudo.">
   <meta property="og:image" content="https://avm.heybrain.uk/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="AVM SP: quanto vale este apartamento em São Paulo? Faixa de valor com 80% de probabilidade.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="AVM SP — estimativa de valor de apartamentos em São Paulo">
-  <meta name="twitter:description" content="Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no seu navegador a partir de transações reais de ITBI. Não é laudo.">
+  <meta name="twitter:description" content="Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no seu navegador. Não é laudo.">
   <meta name="twitter:image" content="https://avm.heybrain.uk/og-image.png">
   <title>AVM SP — estimativa de valor de apartamentos em São Paulo</title>
   <link rel="canonical" href="https://avm.heybrain.uk/">
   <link rel="stylesheet" href="assets/styles.css">
   <link rel="preload" id="model-url" href="assets/model.json" as="fetch" crossorigin>
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "AVM SP", "alternateName": "AVM SP — estimativa de valor de apartamentos em São Paulo", "url": "https://avm.heybrain.uk/", "description": "Estimativa estatística do valor de apartamentos residenciais no município de São Paulo, com faixa de 80% de probabilidade, calculada inteiramente no navegador a partir de transações reais de ITBI e da Planta Genérica de Valores. Não é laudo nem avaliação de imóvel na acepção da NBR 14653-2.", "applicationCategory": "FinanceApplication", "operatingSystem": "Web", "browserRequirements": "Requer JavaScript", "inLanguage": "pt-BR", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "BRL"}, "publisher": {"@type": "Organization", "name": "HeyBrain", "url": "https://heybrain.uk/", "email": "contato@heybrain.uk"}, "image": "https://avm.heybrain.uk/og-image.png", "termsOfService": "https://avm.heybrain.uk/termos", "privacyPolicy": "https://avm.heybrain.uk/privacidade", "about": {"@type": "Thing", "name": "Avaliação estatística de imóveis (AVM)"}, "areaServed": {"@type": "City", "name": "São Paulo", "containedInPlace": {"@type": "State", "name": "São Paulo", "containedInPlace": {"@type": "Country", "name": "Brasil"}}}, "isBasedOn": ["https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501", "https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025"]}</script>
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Dataset", "name": "Base de treino do AVM SP: compras e vendas de apartamentos em São Paulo com ITBI pago, cruzadas com a PGV 2026", "description": "Recorte das Guias de ITBI pagas do Município de São Paulo (apartamentos residenciais, compra e venda, com inscrição predial ativa), cruzado por setor e quadra fiscal com o valor unitário de terreno (VM2T) do Anexo II da Lei Municipal 18.330/2025. Os filtros, o período coberto, a quantidade de transações e as métricas do modelo estão publicados em https://avm.heybrain.uk/metodologia e são lidos do próprio arquivo do modelo.", "url": "https://avm.heybrain.uk/metodologia", "inLanguage": "pt-BR", "spatialCoverage": {"@type": "Place", "name": "Município de São Paulo, SP, Brasil"}, "creator": {"@type": "Organization", "name": "HeyBrain", "url": "https://heybrain.uk/"}, "isBasedOn": [{"@type": "Dataset", "name": "Guias de ITBI pagas — Município de São Paulo", "url": "https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501", "publisher": {"@type": "GovernmentOrganization", "name": "Secretaria Municipal da Fazenda de São Paulo"}}, {"@type": "Legislation", "name": "Lei Municipal nº 18.330, de 11 de novembro de 2025 — Planta Genérica de Valores (Anexos I e II)", "url": "https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025", "legislationJurisdiction": "Município de São Paulo"}], "variableMeasured": ["valor de transação declarado (R$)", "área construída (m²)", "ano de conclusão da construção (IPTU)", "padrão cadastral do IPTU", "valor unitário de terreno VM2T (R$/m²)"]}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "AVM SP", "alternateName": "AVM SP — estimativa de valor de apartamentos em São Paulo", "url": "https://avm.heybrain.uk/", "description": "Estimativa estatística do valor de apartamentos residenciais no município de São Paulo, com faixa de 80% de probabilidade, calculada inteiramente no navegador. Não é laudo nem avaliação de imóvel na acepção da NBR 14653-2.", "applicationCategory": "FinanceApplication", "operatingSystem": "Web", "browserRequirements": "Requer JavaScript", "inLanguage": "pt-BR", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "BRL"}, "publisher": {"@type": "Organization", "name": "HeyBrain", "url": "https://heybrain.uk/", "email": "contato@heybrain.uk"}, "image": "https://avm.heybrain.uk/og-image.png", "termsOfService": "https://avm.heybrain.uk/termos", "privacyPolicy": "https://avm.heybrain.uk/privacidade", "about": {"@type": "Thing", "name": "Avaliação estatística de imóveis (AVM)"}, "areaServed": {"@type": "City", "name": "São Paulo", "containedInPlace": {"@type": "State", "name": "São Paulo", "containedInPlace": {"@type": "Country", "name": "Brasil"}}}}</script>
 </head>
 <body>
   <header class="app-header">
@@ -37,7 +36,6 @@
     </a>
     <nav class="tabs" aria-label="Páginas">
       <a class="tab is-active" href="/" aria-current="page">Precificação</a>
-      <a class="tab" href="/metodologia">Metodologia</a>
       <a class="tab" href="/manual">Manual</a>
     </nav>
     <div class="model-pill"><i></i><span data-model-version>Carregando modelo</span></div>
@@ -171,7 +169,7 @@
           <section><h3>Limitações e condicionantes</h3><ul id="report-risks"></ul></section>
         </div>
         <div class="report-note">
-          <strong>Natureza deste documento.</strong> Estimativa estatística gerada automaticamente, sem vistoria e sem análise jurídica. Não é laudo nem avaliação de imóvel na acepção da NBR 14653-2 e não serve para garantia, financiamento, inventário ou fins judiciais. Metodologia, limites e métricas em avm.heybrain.uk/metodologia.
+          <strong>Natureza deste documento.</strong> Estimativa estatística gerada automaticamente, sem vistoria e sem análise jurídica. Não é laudo nem avaliação de imóvel na acepção da NBR 14653-2 e não serve para garantia, financiamento, inventário ou fins judiciais. Os limites de aplicabilidade e as métricas de erro do modelo constam deste relatório.
         </div>
         <footer class="report-footer"><span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b></span><span id="report-time">—</span></footer>
       </article>
@@ -179,8 +177,8 @@
   </main>
 
   <footer class="app-footer">
-    <span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b> · fontes: <a id="footer-src-itbi" href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501" target="_blank" rel="noreferrer">Guias de ITBI pagas, Secretaria Municipal da Fazenda de São Paulo</a> e <a id="footer-src-pgv" href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025" target="_blank" rel="noreferrer">Lei Municipal 18.330/2025</a></span>
-    <nav aria-label="Páginas institucionais"><a href="/manual">Manual</a><a href="/metodologia">Metodologia</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
+    <span>AVM/SP · modelo <b data-model-version>—</b> · treinado em <b data-model-trained>—</b></span>
+    <nav aria-label="Páginas institucionais"><a href="/manual">Manual</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a><a href="mailto:contato@heybrain.uk">Contato</a></nav>
   </footer>
   <script src="assets/vendor/tesseract.min.js" defer></script>
   <script src="assets/matricula-reader.js" defer></script>
