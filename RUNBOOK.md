@@ -96,6 +96,11 @@ cd site/assets/vendor && { grep '^#' SHA256SUMS; find . -type f ! -name SHA256SU
 ```
 Teste o OCR no navegador (`npx wrangler dev --assets <cópia do dist> --port 8788` com um PDF) antes do PR.
 
+**`unpdf` (OCR do canal de e-mail) fica travado em 1.1.0** (pdf.js 5.2): é a última versão cujo pdf.js decodifica JBIG2 e
+CCITT em JavaScript — o formato de quase todo escaneado de cartório e de prefeitura. Do 1.2 em diante o pdf.js só decodifica
+via wasm carregado por URL, que o Worker não tem, e a resposta vira "sem texto legível". Antes de subir, rodar
+`node --test tests/ocr.test.mjs` com `testes/` presente (o teste do JBIG2 real do caso 02 só roda com o arquivo).
+
 ## Configurações da zona que importam (heybrain.uk)
 
 - SSL/TLS **Full (strict)**, Always Use HTTPS **on**, TLS mínimo **1.2**, HSTS **on** (180 dias, sem preload).

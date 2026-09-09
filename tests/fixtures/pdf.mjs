@@ -44,9 +44,16 @@ export function textPdf(lines) {
 
 // strips > 1 divide a página em faixas horizontais (uma imagem por faixa, desenhadas de cima para baixo), como os
 // escaneados "em tiras" do caso real 01 (12 imagens de 764×85 por página).
-export function scannedPdf({ width = 8, height = 8, pages = 1, strips = 1 } = {}) {
-  const pixels = new Uint8Array(width * height);
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) pixels[y * width + x] = Math.round((x * 255) / Math.max(1, width - 1));
+// bits = 1 empacota o gradiente como bitmap DeviceGray de 1 bit (pixel ≥ 128 → 1 = branco, MSB primeiro), o mesmo
+// formato que o pdf.js entrega para JBIG2/CCITT.
+export function scannedPdf({ width = 8, height = 8, pages = 1, strips = 1, bits = 8 } = {}) {
+  const rowBytes = bits === 1 ? Math.ceil(width / 8) : width;
+  const pixels = new Uint8Array(rowBytes * height);
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    const value = Math.round((x * 255) / Math.max(1, width - 1));
+    if (bits === 1) pixels[y * rowBytes + (x >> 3)] |= (value >= 128 ? 1 : 0) << (7 - (x & 7));
+    else pixels[y * width + x] = value;
+  }
   const stripHeight = height / strips; // o teste usa altura divisível
   const objects = []; // Uint8Array por objeto, na ordem 1..n
   const pageIds = [];
@@ -61,8 +68,8 @@ export function scannedPdf({ width = 8, height = 8, pages = 1, strips = 1 } = {}
     const content = Array.from({ length: strips }, (_, s) => `q ${width} 0 0 ${stripHeight} 0 ${height - (s + 1) * stripHeight} cm /Im${s} Do Q`).join(" ");
     objects.push(concat([latin1(`<< /Length ${content.length} >>\nstream\n`), latin1(content), latin1("\nendstream")]));
     for (let s = 0; s < strips; s += 1) {
-      const slice = pixels.subarray(s * stripHeight * width, (s + 1) * stripHeight * width);
-      objects.push(concat([latin1(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${stripHeight} /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ${slice.length} >>\nstream\n`), slice, latin1("\nendstream")]));
+      const slice = pixels.subarray(s * stripHeight * rowBytes, (s + 1) * stripHeight * rowBytes);
+      objects.push(concat([latin1(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${stripHeight} /ColorSpace /DeviceGray /BitsPerComponent ${bits} /Length ${slice.length} >>\nstream\n`), slice, latin1("\nendstream")]));
     }
   }
   objects[1] = latin1(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages} >>`);
