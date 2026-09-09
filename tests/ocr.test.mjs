@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { getDocumentProxy } from "unpdf";
 import { crc32, toBase64, encodePng, pageImages, ocrPayload, transcribe, ocrDocument, OCR_MODEL } from "../src/ocr.js";
 import { scannedPdf } from "./fixtures/pdf.mjs";
+import { existsSync, readFileSync } from "node:fs";
 
 const be32 = (bytes, at) => ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0;
 
@@ -107,6 +108,25 @@ test("pageImages: página escaneada em faixas é remontada de cima para baixo", 
   assert.equal(page.width, 8);
   assert.equal(page.height, 8); // 4 faixas de 2 linhas empilhadas
   for (const row of [0, 3, 7]) assert.deepEqual(firstChannelRow(page, row), GRADIENTE_8);
+});
+
+test("pageImages: bitmap de 1 bit (o que o pdf.js entrega para JBIG2/CCITT) vira cinza 8 bits, 1 = branco", async () => {
+  const [page] = await pageImages(scannedPdf({ width: 8, height: 2, bits: 1 }));
+  assert.equal(page.channels, 1);
+  assert.deepEqual(Array.from(page.data), [0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255]);
+});
+
+// Caso real 02 (JBIG2 de cartório; testes/ fica fora do git): o pdf.js embutido no unpdf 1.1.0 decodifica em JS.
+// O unpdf ≥ 1.2 (pdf.js ≥ 5.4) só decodifica JBIG2/CCITT via wasm carregado por URL, o que não existe no Worker —
+// e a build serverless nem tenta carregar: "JBig2 failed to initialize". Não subir o unpdf sem refazer este teste.
+const realJbig2 = new URL("../testes/documentos_10_apartamentos/split/02_iptu.pdf", import.meta.url);
+test("pageImages: JBIG2 real (caso 02) é decodificado e a página é majoritariamente branca", { skip: !existsSync(realJbig2) && "testes/ ausente" }, async () => {
+  const [page] = await pageImages(readFileSync(realJbig2));
+  assert.equal(page.width, 2484);
+  assert.equal(page.channels, 1);
+  let white = 0;
+  for (const v of page.data) if (v === 255) white += 1;
+  assert.ok(white / page.data.length > 0.9);
 });
 
 test("pageImages: PDF inválido → lista vazia, sem lançar", async () => {
