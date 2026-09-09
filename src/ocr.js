@@ -1,7 +1,7 @@
 // OCR da Entrega 2 (spec §5): a página escaneada vira PNG cinza e um modelo de visão do Workers AI transcreve o
 // texto, que segue para os MESMOS extratores da matrícula e do carnê — o modelo nunca decide um campo.
 // Puro: recebe `ai` injetado; nada é gravado. PNG escrito sem biblioteca (deflate nativo do runtime).
-import { getDocumentProxy, extractImages } from "unpdf";
+import { getDocumentProxy, getResolvedPDFJS } from "unpdf";
 
 const CRC_TABLE = new Uint32Array(256).map((_, n) => {
   let c = n;
@@ -75,6 +75,31 @@ export async function encodePng({ data, width, height, channels }, maxSide = 160
   return png;
 }
 
+// Imagens desenhadas na página, em pixels brutos. Extração própria porque o extractImages do unpdf descarta o
+// bitmap de 1 bit (kind 1, MSB primeiro, 1 = branco) que o pdf.js entrega para JBIG2 e CCITT — o formato de
+// quase todo escaneado de cartório e de prefeitura (caso real 02). Aqui ele vira cinza 8 bits.
+async function pageObjects(page) {
+  const { OPS } = await getResolvedPDFJS();
+  const ops = await page.getOperatorList();
+  const images = [];
+  for (let i = 0; i < ops.fnArray.length; i += 1) {
+    if (ops.fnArray[i] !== OPS.paintImageXObject) continue;
+    const key = ops.argsArray[i][0];
+    const store = String(key).startsWith("g_") ? page.commonObjs : page.objs;
+    const image = await new Promise((resolve) => store.get(key, resolve));
+    if (!image?.data || !image.width || !image.height) continue;
+    const { width, height, data } = image;
+    const channels = data.length / (width * height);
+    if (channels === 1 || channels === 3 || channels === 4) { images.push({ data, width, height, channels }); continue; }
+    if (image.kind !== 1) continue; // 1 = GRAYSCALE_1BPP
+    const rowBytes = Math.ceil(width / 8);
+    const gray = new Uint8Array(width * height);
+    for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) gray[y * width + x] = (data[y * rowBytes + (x >> 3)] >> (7 - (x & 7))) & 1 ? 255 : 0;
+    images.push({ data: gray, width, height, channels: 1 });
+  }
+  return images;
+}
+
 // Página escaneada "em faixas" (várias imagens da mesma largura, caso real 01): empilha na ordem dos operadores,
 // que é de cima para baixo. Caso contrário, a maior imagem é a página.
 function composePage(found) {
@@ -112,7 +137,7 @@ export async function pageImages(pdfBytes, maxPages = 4, transform = async (imag
     const pageCount = Math.min(pdf.numPages, maxPages);
     for (let page = 1; page <= pageCount; page += 1) {
       try {
-        const composed = composePage(await extractImages(pdf, page));
+        const composed = composePage(await pageObjects(await pdf.getPage(page)));
         if (composed) images.push(await transform({ ...composed, page }));
       } catch (_) { /* página com imagem que o pdf.js não decodifica (ex.: JPX): pulada */ }
     }

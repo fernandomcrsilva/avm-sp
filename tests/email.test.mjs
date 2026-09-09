@@ -340,7 +340,8 @@ function ambiente({ allow = true, sendFails = false } = {}) {
 
 const logs = [];
 const realLog = console.log;
-test.before(() => { console.log = (line) => logs.push(JSON.parse(line)); globalThis.fetch = fetchFalso; });
+// O unpdf avisa "use the legacy build" pelo console.log só no Node: o stub ignora o que não é JSON.
+test.before(() => { console.log = (line) => { if (String(line).startsWith("{")) logs.push(JSON.parse(line)); }; globalThis.fetch = fetchFalso; });
 test.after(() => { console.log = realLog; });
 
 test("email(): remetente fora da lista → setReject sem ler nem responder", async () => {
