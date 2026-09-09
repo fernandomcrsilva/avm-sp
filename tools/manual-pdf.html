@@ -187,7 +187,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <p>Ao terminar de preencher ou alterar o endereço, o aplicativo consulta o OpenStreetMap e preenche CEP e bairro. O botão Localizar repete a consulta quando você quiser. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</p>
   </div></div>
   <div class="box laranja"><strong>Documento digitalizado</strong>
-    <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. O documento é lido no próprio navegador e não é enviado a servidor algum.</p>
+    <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. No aplicativo, o documento é lido no próprio navegador e não é enviado a servidor algum; no envio por e-mail (capítulo 10) o processamento acontece no servidor.</p>
   </div>
   <h2>A área do cálculo</h2>
   <table>
@@ -366,7 +366,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   </table>
   <ul>
     <li><strong>Um imóvel por e-mail.</strong> Mais de uma matrícula ou mais de um IPTU na mesma mensagem é devolvido sem cálculo.</li>
-    <li>Formatos: PDF, PNG, JPEG ou WebP. Até 6 anexos de 10 MB; mensagem de até 20 MB. Imagens muito pequenas (menos de 20 KB) são ignoradas.</li>
+    <li>Formatos: PDF, PNG, JPEG ou WebP. Até 6 anexos de 10 MB (imagens: entre 20 KB e 5 MB); mensagem de até 20 MB.</li>
     <li>PDF com texto é lido direto. Escaneado ou foto passa por OCR (até 4 páginas por documento).</li>
     <li>Até 3 e-mails por minuto por remetente.</li>
   </ul>
@@ -380,11 +380,11 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <thead><tr><th style="width:44%">Mensagem recebida</th><th>O que significa e o que fazer</th></tr></thead>
     <tbody>
       <tr><td>Relatório com faixa de valor e Excel anexo</td><td>Estimativa concluída. Leia os avisos: são os mesmos alertas da tela.</td></tr>
-      <tr><td>"A estimativa foi recusada porque o imóvel está fora do domínio do modelo"</td><td>Área, idade ou valor fora dos limites do modelo (capítulo 2). Não há relatório; encaminhe para análise técnica (capítulo 9).</td></tr>
+      <tr><td>"A estimativa foi recusada porque o imóvel está fora do domínio do modelo"</td><td>Área, idade ou valor fora dos limites do modelo (capítulo 2), ou matrícula que não descreve um apartamento; o motivo vem listado na resposta. Não há relatório; encaminhe para análise técnica (capítulo 9).</td></tr>
       <tr><td>"Não foi possível estimar. Faltou: …"</td><td>O dado listado não foi encontrado nos documentos. Confira se o IPTU anexado é do mesmo imóvel e traz o campo; reenvie tudo em um único e-mail.</td></tr>
       <tr><td>"Não foi possível ler: … (sem texto legível)"</td><td>O arquivo não tem texto e o OCR não conseguiu transcrever (foto ruim, página em branco, arquivo protegido). Envie o PDF original digital.</td></tr>
       <tr><td>"Foi encontrada mais de uma matrícula" / "Foi encontrado mais de um documento de IPTU"</td><td>Dois imóveis na mesma mensagem. Envie um imóvel por e-mail.</td></tr>
-      <tr><td>"Ignorados: …" (no fim de uma resposta)</td><td>Anexos que não são PDF nem imagem (planilhas, .docx, logotipos de assinatura). Não afetam o cálculo.</td></tr>
+      <tr><td>"Ignorados: …" (no fim de uma resposta)</td><td>Anexos que não são PDF nem imagem (planilhas, .docx, logotipos de assinatura), imagens fora da faixa de 20 KB a 5 MB e arquivos acima de 10 MB. Não entram no cálculo: se um deles era a matrícula ou o IPTU, reenvie em PDF ou em imagem menor.</td></tr>
       <tr><td>Mensagem devolvida pelo servidor: "Remetente não autorizado para o AVM SP."</td><td>O endereço não está na lista. Peça a inclusão a contato@heybrain.uk e reenvie do endereço autorizado.</td></tr>
       <tr><td>Devolvida: "Limite de envios atingido; aguarde um minuto."</td><td>Mais de 3 e-mails no mesmo minuto. Aguarde e reenvie.</td></tr>
       <tr><td>Devolvida: "Mensagem grande demais (máximo 20 MB)."</td><td>Reduza os anexos: PDF original em vez de fotos, ou menos páginas.</td></tr>
