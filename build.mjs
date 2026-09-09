@@ -15,6 +15,21 @@ const QUOTES = ['"', "'", "`"];
 rmSync(OUT, { recursive: true, force: true });
 cpSync(SRC, OUT, { recursive: true });
 
+// As fontes da base de treino não são publicadas: `source` e `pgv_source` saem do model.json servido.
+// O arquivo em site/assets/ (repo privado) fica intacto, e com ele a fixture de paridade do CI.
+const publicModelPath = join(OUT, "assets", "model.json");
+const publicModel = JSON.parse(readFileSync(publicModelPath, "utf8"));
+delete publicModel.source;
+delete publicModel.pgv_source;
+publicModel.version = publicModel.version.replace("-ITBI-PGV-", "-"); // o nome do treino não vai ao ar
+// Campos que ninguém no site lê e que descrevem a planilha de origem pelo nome das suas colunas
+// e dos seus códigos ("Natureza de Transação", "Ativo Predial"): identificam a base sem citá-la.
+for (const key of ["nature", "sql_status", "transaction_dates"]) delete publicModel.applicability[key];
+for (const key of ["nature_filter", "condominium_fee", "financing_system"]) delete publicModel.hyperparameters[key];
+for (const key of ["rows_raw", "cep3_regions"]) delete publicModel.eda[key];
+const modelBytes = Buffer.from(`${JSON.stringify(publicModel)}\n`);
+writeFileSync(publicModelPath, modelBytes);
+
 const walk = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]);
@@ -66,15 +81,13 @@ for (const file of scripts) { rewrite(file); fingerprint(file); }
 for (const file of walk(OUT).filter((file) => file.endsWith(".html"))) rewrite(file);
 
 // /version.json: o que está no ar sem abrir o dashboard (Fase 8). Servido com no-store via _headers.
-const modelBytes = readFileSync(join(SRC, "assets", "model.json"));
-const model = JSON.parse(modelBytes.toString("utf8"));
 const gitSha = process.env.GITHUB_SHA || (() => { try { return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(); } catch { return "unknown"; } })();
 writeFileSync(join(OUT, "version.json"), `${JSON.stringify({
   git_sha: gitSha,
   built_at: new Date().toISOString(),
-  model_version: model.version,
-  model_trained_at: model.trained_at,
-  model_sha256: createHash("sha256").update(modelBytes).digest("hex"), // o mesmo da fixture de paridade e da /metodologia
+  model_version: publicModel.version,
+  model_trained_at: publicModel.trained_at,
+  model_sha256: createHash("sha256").update(modelBytes).digest("hex"), // do model.json servido, já sem os blocos de fonte
   model_asset: renamed.get("assets/model.json"),
 }, null, 1)}\n`);
 console.log(`${renamed.size} assets com fingerprint em ${OUT}/`);

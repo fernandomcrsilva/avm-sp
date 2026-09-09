@@ -286,7 +286,6 @@ function renderResult(report) {
     ["Amostra de treino", `${number.format(report.model.eda.rows_model)} compras e vendas`],
     ["Erro percentual mediano deste modelo", `${decimal.format(report.model.metrics.med_ape_pct)}%`],
     [`Cobertura observada da faixa de ${model.hyperparameters.interval_nominal_coverage_pct}%`, `${decimal.format(report.model.metrics.interval_80_coverage_pct)}%`],
-    ["Fontes", `${model.source.name} (${model.source.publisher}); ${model.pgv_source.name}`],
     ["Transações na região do CEP", result.localSupport ? `${number.format(result.localSupport.n)} (${result.localSupport.level}; não altera o preço)` : null],
   ]);
   $("report-risks").innerHTML = report.risks.map((risk) => `<li>${escapeHtml(risk)}</li>`).join("");
@@ -384,8 +383,6 @@ async function init() {
     AvmCommon.fillVersion(model);
     document.querySelectorAll("[data-coverage]").forEach((el) => { el.textContent = model.hyperparameters.interval_nominal_coverage_pct; });
     $("declare-use").textContent = model.applicability.use_iptu;
-    $("footer-src-itbi").href = model.source.page_url;
-    $("footer-src-pgv").href = model.pgv_source.law_url;
     populatePatterns();
     applyLimitsToForm();
     updateVariableControls();

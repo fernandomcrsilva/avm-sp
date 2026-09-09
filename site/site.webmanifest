@@ -1,7 +1,7 @@
 {
   "name": "AVM SP — estimativa de valor de apartamentos em São Paulo",
   "short_name": "AVM SP",
-  "description": "Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no navegador a partir de transações reais de ITBI.",
+  "description": "Faixa de valor com 80% de probabilidade para apartamentos residenciais em São Paulo, calculada no navegador.",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",

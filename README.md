@@ -4,7 +4,7 @@ Estimativa estatística do valor de apartamentos residenciais em São Paulo, com
 calculada inteiramente no navegador a partir de transações reais de ITBI e da Planta Genérica de Valores.
 **Não é laudo** nem avaliação de imóvel na acepção da NBR 14653-2.
 
-Produção: https://avm.heybrain.uk · Metodologia: https://avm.heybrain.uk/metodologia
+Produção: https://avm.heybrain.uk
 
 | Documento | Conteúdo |
 |---|---|

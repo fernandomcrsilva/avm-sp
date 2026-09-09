@@ -138,7 +138,7 @@ test("compose(report): identificação, faixa, documentos, premissas, avisos e r
     "Faixa de 80% de probabilidade: R$", "Valor central: R$", "/m²)",
     "Documentos lidos: iptu.pdf + matricula.pdf — texto do PDF.", "Ignorados: planilha.xlsx.",
     "apartamento residencial (conforme a matrícula)", "SFH / SBPE", report.risks[0],
-    "https://avm.heybrain.uk/metodologia", "processados em memória e não foram armazenados",
+    "O relatório completo está no Excel anexo.", "processados em memória e não foram armazenados",
   ]) assert.ok(norm(out.text).includes(norm(trecho)), `faltou no texto: ${trecho}`);
   assert.ok(norm(out.html).includes("<p>") && norm(out.html).includes(report.id) && !norm(out.html).includes("<script"));
 });
