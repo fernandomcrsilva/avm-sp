@@ -47,6 +47,19 @@ Ano de Construcao: 2015 Tipo: 2 Padrao: B Valor Unitario do Terreno R$ 4.312,00`
   assert.equal(fields.sql, "118.002.0331-9");
 });
 
+test("padrão com o rótulo estropiado pela camada de texto do escaneado ('Padrão da Conceição: 2-D', caso real 02)", () => {
+  const fields = AVMMatricula.extractIptuFields("CERTIDÃO DE DADOS CADASTRAIS Ama construída(m2) : 320 _ ... -Padrão da Conceição: 2-D Ano da construção corrigido: ' -- issi");
+  assert.equal(fields.patternLabel, "2-D");
+  assert.equal(fields.patternCode, 23);
+});
+
+test("VM2T da certidão com a preposição trocada pelo OCR ('- do terreno' / '- da terreno')", () => {
+  for (const prep of ["de", "do", "da"]) {
+    const fields = AVMMatricula.extractIptuFields(`CERTIDÃO DE DADOS CADASTRAIS Valores de m² (R$): - ${prep} terreno: 2.523,00 - da construção: 2.584,00`);
+    assert.equal(fields.fiscal, 2523, prep);
+  }
+});
+
 test("tipo que não é residencial vertical fica sem código de padrão", () => {
   const casa = "NOTIFICAÇÃO DE LANÇAMENTO IPTU Ano da Construção Corrigido: 2010 Tipo/Padrão: 1-C Valor do m² do Terreno (R$): 1.200,00";
   const fields = AVMMatricula.extractIptuFields(casa);
