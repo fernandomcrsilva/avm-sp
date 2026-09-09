@@ -22,6 +22,11 @@ const publicModel = JSON.parse(readFileSync(publicModelPath, "utf8"));
 delete publicModel.source;
 delete publicModel.pgv_source;
 publicModel.version = publicModel.version.replace("-ITBI-PGV-", "-"); // o nome do treino não vai ao ar
+// Campos que ninguém no site lê e que descrevem a planilha de origem pelo nome das suas colunas
+// e dos seus códigos ("Natureza de Transação", "Ativo Predial"): identificam a base sem citá-la.
+for (const key of ["nature", "sql_status", "transaction_dates"]) delete publicModel.applicability[key];
+for (const key of ["nature_filter", "condominium_fee", "financing_system"]) delete publicModel.hyperparameters[key];
+for (const key of ["rows_raw", "cep3_regions"]) delete publicModel.eda[key];
 const modelBytes = Buffer.from(`${JSON.stringify(publicModel)}\n`);
 writeFileSync(publicModelPath, modelBytes);
 

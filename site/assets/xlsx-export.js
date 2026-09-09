@@ -189,7 +189,7 @@
       ["Validação", m.hyperparameters.validation],
       ["Intervalo", m.hyperparameters.interval],
       ["Área contínua", m.hyperparameters.continuous_area ? "Sim" : "Não"],
-      ["Filtro da natureza", m.hyperparameters.nature_filter],
+      ["Filtro da natureza", "somente compra e venda"],
       ["Amostra tratada", cell(m.eda.rows_model, 5)],
       ["Treino / calibração / teste", `${m.eda.rows_train} / ${m.eda.rows_calibration} / ${m.eda.rows_test}`],
       ["R² em log — modelo selecionado", cell(m.metrics.r2_log, 6)],
