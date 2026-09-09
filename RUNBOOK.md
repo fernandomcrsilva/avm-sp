@@ -1,6 +1,6 @@
 # RUNBOOK — AVM SP (avm.heybrain.uk)
 
-Site estático em Cloudflare Workers Static Assets + um Worker mínimo (`src/worker.js`, só `POST /api/erro`).
+Site estático em Cloudflare Workers Static Assets + um Worker (`src/worker.js`): `POST /api/erro` e o handler `email()` da estimativa por e-mail (`avm@heybrain.uk`).
 Repositório: https://github.com/fernandomcrsilva/avm-sp · Worker: `avm-sp` (conta HeyBrain!) · Produção: https://avm.heybrain.uk · Preview: `*.avm-sp.heybrain.workers.dev` (noindex).
 
 ## O que está no ar
@@ -107,31 +107,46 @@ Teste o OCR no navegador (`npx wrangler dev --assets <cópia do dist> --port 878
 
 ## Estimativa por e-mail (avm@heybrain.uk)
 
-Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; spec em `docs/superpowers/specs/2026-09-08-email-avm-design.md`.
+Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; OCR em `src/ocr.js`; spec em `docs/superpowers/specs/2026-09-08-email-avm-design.md`; o que o remetente vê está no capítulo 10 do manual (`/manual`).
 
-Sem o segredo `ALLOWED_SENDERS`, **todo** e-mail é recusado — é o estado do Worker logo depois do merge, antes do passo 1.
+Sem o segredo `ALLOWED_SENDERS`, **todo** e-mail é recusado — é o estado do Worker logo depois de um deploy limpo, antes do passo 2.
 
 **Ativar (uma vez, depois de privacidade e termos publicados):**
-1. Remetentes autorizados: `npx wrangler secret put ALLOWED_SENDERS` e colar a lista separada por vírgulas — `@orgao.sp.gov.br` autoriza o domínio exato (sem subdomínios), `pessoa@empresa.com.br` autoriza o endereço. Sem espaços obrigatórios; maiúsculas não importam.
-2. Regra de roteamento: Dashboard → Compute & AI → Email Service → Email Routing → `heybrain.uk` → Routing rules → Create address `avm` → Action **Send to a Worker** → `avm-sp`. (Equivalente: `npx wrangler email routing rules create --help`.)
-3. Teste real: de um endereço que esteja na lista, mandar um e-mail com uma matrícula e um carnê digitais; a resposta chega na mesma conversa em menos de um minuto, com o `.xlsx`.
-4. Conferir no Workers Logs a linha de invocação desse e-mail real: se ela trouxer o endereço do remetente, desligar `invocation_logs` no `wrangler.jsonc` ou ajustar o texto da privacidade antes de liberar o canal — a página afirma que só ficam linhas técnicas sem dados pessoais.
+1. Desligar a pré-visualização de mensagens enviadas: Dashboard → Compute & AI → Email Service → **Email Sending** → `heybrain.uk` → Settings → **Enable email preview: off**. Ligada (o padrão em domínio novo), a Cloudflare guarda por ~7 dias cada resposta inteira — inclusive o Excel com os dados do imóvel —, e a privacidade afirma o contrário.
+2. Remetentes autorizados: `npx wrangler secret put ALLOWED_SENDERS` e colar a lista separada por vírgulas — `@orgao.sp.gov.br` autoriza o domínio exato (sem subdomínios), `pessoa@empresa.com.br` autoriza o endereço. Espaços e maiúsculas não importam. Vale no próximo e-mail; não há deploy.
+3. Regra de roteamento: Dashboard → Compute & AI → Email Service → **Email Routing** → `heybrain.uk` → Routing rules → Create address `avm` → Action **Send to a Worker** → `avm-sp`. (Equivalente: `npx wrangler email routing rules create --help`.)
+4. Teste real: de um endereço que esteja na lista, mandar um e-mail com uma matrícula e um documento de IPTU digitais (PDF com texto). A resposta chega na mesma conversa em menos de um minuto, com o `.xlsx`. Com escaneado, até ~2 minutos.
+5. Conferir os registros desse e-mail (abaixo, "Ler o que aconteceu"): em Workers Logs deve haver só a linha `email_processed`, sem endereço nem arquivo; no Activity log do Email Service aparecem o remetente, o assunto e a entrega — é o que a página de privacidade declara.
 
-**Trocar remetentes:** repetir `wrangler secret put ALLOWED_SENDERS` com a lista nova (substitui a anterior; vale no próximo e-mail).
+**Trocar remetentes:** repetir `npx wrangler secret put ALLOWED_SENDERS` com a lista completa nova (substitui a anterior; vale no próximo e-mail). Para remover alguém, colar a lista sem ele.
 
-**Desligar o canal:** desabilitar a regra `avm` no dashboard. O Worker continua no ar para o site.
+**Desligar o canal (um passo):** Email Routing → `heybrain.uk` → Routing rules → regra `avm` → **Disable**. O Worker continua no ar para o site; e-mails para `avm@` passam a ser rejeitados pelo MX da Cloudflare (o remetente recebe bounce). Religar = Enable na mesma regra.
 
-**Teste local:** `npx wrangler dev` (preview `wrangler-dev`) com `ALLOWED_SENDERS=@exemplo.gov.br` em `.dev.vars`, e `curl --request POST 'http://localhost:8787/cdn-cgi/local/email' --url-query 'from=teste@exemplo.gov.br' --url-query 'to=avm@heybrain.uk' --data-binary @teste.eml` (corpo RFC 5322 com `Message-ID`). O `send_email` é simulado no terminal; anexos binários não aparecem no simulador — o Excel é coberto por `tests/email.test.mjs`.
+**Desligar só o OCR:** não há chave própria; as alavancas são tirar o remetente de `ALLOWED_SENDERS` ou desabilitar a regra. Pior caso de custo com um remetente comprometido: 3 e-mails/min × 8 páginas × ~US$ 0,002 ≈ US$ 3/hora — configure um alerta de gasto em Compute & AI → Workers AI.
 
-**Ler o que aconteceu:** Workers Logs, filtrar `event: email_*`. `email_rejected` (`reason`: unauthorized / ratelimit / too_large) não abre o e-mail; `email_processed` traz `outcome` (report / refused / missing / unreadable / ambiguous / error), `documents`, `unreadable`, `ms`; `email_send_failed` = resposta não saiu e o remetente recebeu bounce. Nenhuma linha traz endereço, arquivo ou valores. "Não recebi resposta" → procurar o `outcome`; se não há linha, o e-mail não chegou ao Worker (regra desligada ou MX). `ocr_pages` > 0 indica que houve transcrição; `unreadable` conta documentos que nem o OCR leu.
+**Teste local (sem tocar em produção):** `npx wrangler dev` com `ALLOWED_SENDERS=@exemplo.gov.br` em `.dev.vars` (arquivo ignorado pelo git). O `.eml` sai de um script, com carnê e matrícula sintéticos como PDFs com texto:
 
-**Limites:** 3 e-mails por minuto por remetente; 20 MB por mensagem; 6 anexos de até 10 MB (PDF, PNG, JPEG ou WebP). PDF com camada de texto é lido direto; escaneado ou imagem passa por OCR no Workers AI (até 4 páginas por documento e 8 por e-mail, ~1–2 min de resposta). Custo do OCR: da ordem de US$ 0,002 por página no Gemma 4 — acompanhar em Compute & AI → Workers AI no dashboard.
+```bash
+node scripts/eml-exemplo.mjs > exemplo.eml
+curl --request POST 'http://localhost:8787/cdn-cgi/local/email' --url-query 'from=teste@exemplo.gov.br' --url-query 'to=avm@heybrain.uk' --data-binary @exemplo.eml
+```
 
-**Desligar só o OCR:** não há chave própria; as alavancas são tirar o remetente de `ALLOWED_SENDERS` ou desabilitar a regra de roteamento. Pior caso de custo com um remetente comprometido: 3 e-mails/min × 8 páginas × ~US$ 0,002 ≈ US$ 3/hora — configure um alerta de gasto em Compute & AI → Workers AI. Se o binding recusar uma imagem (payload grande), a página cai como "sem texto legível" — o `ocr_pages` do log continua contando a tentativa.
+O terminal do `wrangler dev` mostra a linha `email_processed` (`outcome: report`) e o e-mail de resposta simulado; o texto dos PDFs e o OCR usam o Workers AI da conta (remoto), então precisa de rede e de login no wrangler. Anexos binários não aparecem no simulador — o Excel é coberto por `tests/email.test.mjs`. Para testar recusa, troque o `from` por um domínio fora da lista (`email_rejected`, `reason: unauthorized`). Encerre o `wrangler dev` antes de `npm run build`/`check`.
+
+**Ler o que aconteceu — dois lugares:**
+- *Workers Logs* (dashboard → Workers & Pages → `avm-sp` → Logs; 7 dias): filtrar `event: email_*`. `email_rejected` (`reason`: unauthorized / ratelimit / too_large) não abriu o e-mail; `email_dropped` (`reason: auto_submitted`) era resposta automática de alguém e foi descartado sem bounce; `email_processed` traz `outcome` (report / refused / missing / unreadable / ambiguous / error), `documents`, `unreadable`, `ocr_pages` (> 0 = houve transcrição) e `ms`; `email_send_failed` = a resposta não saiu e o remetente recebeu bounce. Nenhuma linha traz endereço, arquivo ou valores; os logs de invocação estão desligados no `wrangler.jsonc` justamente porque trariam o remetente.
+- *Activity log do Email Service* (Compute & AI → Email Service → Email Routing ou Email Sending → `heybrain.uk` → Activity; 31 dias): uma linha por mensagem recebida (remetente, destinatário, assunto, SPF/DKIM/DMARC, ação — "Worker") e por resposta enviada (Sent / Delivered / Delivery failed / Rejected / Failed). É registro da Cloudflare, não desligável; a privacidade o declara.
+
+**"Não recebi resposta":**
+1. Activity log de *Routing*: a mensagem chegou? Se não há linha, o e-mail não saiu do remetente ou foi para outro endereço — pedir o comprovante de envio. Se a ação não é "Worker", a regra `avm` está desabilitada ou não existe.
+2. Workers Logs: qual foi o `outcome`? `email_rejected: unauthorized` → incluir o remetente em `ALLOWED_SENDERS`; `ratelimit` → mais de 3 por minuto; `too_large` → mais de 20 MB; `email_processed` com `outcome: error` → abrir issue com a linha (tem só `error.name`); `email_dropped` → o remetente mandou como resposta automática (`Auto-Submitted`/`Precedence`), pedir para reenviar normalmente.
+3. Activity log de *Sending*: a resposta consta como Delivered? "Delivery failed" = o servidor do remetente recusou (reputação, caixa cheia): pedir outro endereço. "Rejected" = o endereço está na lista de supressão da conta (bounce anterior): Email Sending → Suppressions → remover.
+
+**Limites (o que o remetente vê no manual):** 3 e-mails por minuto por remetente; 20 MB por mensagem; 6 anexos de até 10 MB (PDF, PNG, JPEG ou WebP; imagem só entre 20 KB e 5 MB). PDF com camada de texto é lido direto; escaneado ou imagem passa por OCR no Workers AI (até 4 páginas por documento e 8 por e-mail). Custo do OCR: da ordem de US$ 0,002 por página no Gemma 4 — acompanhar em Compute & AI → Workers AI. Se o binding recusar uma imagem (payload grande), a página cai como "sem texto legível" — o `ocr_pages` continua contando a tentativa.
 
 ## Observabilidade
 
-- Workers Logs (retenção de 7 dias no plano Paid; confira no dashboard se o plano mudar): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
+- Workers Logs (retenção de 7 dias no plano Paid; confira no dashboard se o plano mudar; **sem logs de invocação** desde 2026-09-08 — o registro automático de um e-mail traz o remetente, e a privacidade promete linhas sem dados pessoais): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
   `{"event":"front_error","kind":...}` com `kind` em `model_load_failed | js_error | unhandled_rejection | ocr_failed | refused`.
   Nunca contêm dados do imóvel; em `refused` só o código do limite.
 - Uptime: `.github/workflows/uptime.yml` a cada 30 min (falha = e-mail do GitHub). Rodar à mão: Actions → uptime → Run workflow.
