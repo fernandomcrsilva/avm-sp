@@ -31,8 +31,8 @@ remetente ── SMTP ──▶ Email Routing (heybrain.uk) ── regra avm@ �
                     ┌───────────────────────────────────────────────────┤ tudo em memória, nada gravado
                     │ 1. remetente na lista (segredo ALLOWED_SENDERS)?  │ não → setReject (bounce)
                     │ 2. resposta automática de alguém? descarta        │
-                    │ 3. limite por remetente (EMAIL_RL, 3/min); 20 MB  │
-                    │ 4. postal-mime → anexos PDF/imagem (≤ 6, ≤ 10 MB) │
+                    │ 3. limite por remetente (EMAIL_RL, 3/min); 20 MiB │
+                    │ 4. postal-mime → anexos PDF/imagem (≤ 6, ≤ 10 MiB)│
                     │ 5. texto: env.AI.toMarkdown (PDF com texto)       │
                     │    ou OCR: unpdf → PNG → gemma-4 (Workers AI)     │
                     │ 6. AVMMatricula.extract* (mesmos leitores do site)│
