@@ -5,7 +5,7 @@
 - **O que é**: site estático que estima o valor de apartamentos em São Paulo com um modelo Ridge hedônico
   treinado offline. A inferência roda no navegador lendo `model.json`. Não há backend de predição, banco,
   conta nem cookie.
-- **Canal por e-mail** (desde 2026-09-08): o mesmo Worker recebe em `avm@heybrain.uk` a matrícula e o documento de IPTU de
+- **Canal por e-mail** (código publicado em 2026-09-08; a ativação — segredo e regra de roteamento — é do dono, ver RUNBOOK): o mesmo Worker recebe em `avm@heybrain.uk` a matrícula e o documento de IPTU de
   remetentes autorizados e devolve, sem intervenção humana, a estimativa no corpo da mensagem e o relatório em Excel.
   Tudo em memória, na invocação; nada é gravado. Escaneados passam por OCR no Workers AI. Spec:
   [docs/superpowers/specs/2026-09-08-email-avm-design.md](docs/superpowers/specs/2026-09-08-email-avm-design.md).
