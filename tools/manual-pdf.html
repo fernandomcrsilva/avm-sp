@@ -104,7 +104,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   <h1 class="title">Manual de utilização</h1>
   <p class="subtitle">Aplicativo de precificação imobiliária fundamentado em modelo de avaliação automatizada</p>
   <div class="rule"></div>
-  <div class="meta">Versão do aplicativo: 7<br>Modelo: SP-AVM-ITBI-PGV-2026.07-R2<br>Setembro de 2026</div>
+  <div class="meta">Versão do aplicativo: 7<br>Modelo: SP-AVM-2026.07-R2<br>Setembro de 2026</div>
   <div class="foot">Documento de orientação operacional - AVM SP</div>
 </div>
 
@@ -140,17 +140,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
 
 <section>
   <h1>2. Dados e escopo do modelo</h1>
-  <p>O treinamento utiliza duas fontes oficiais. A base de ITBI fornece as transações e a PGV fornece a referência fiscal territorial. Somente transações classificadas como compra e venda são admitidas no conjunto de modelagem.</p>
-  <table>
-    <thead><tr><th style="width:26%">Fonte</th><th style="width:42%">Finalidade</th><th>Localização</th></tr></thead>
-    <tbody>
-      <tr><td>Guias de ITBI pagas</td><td>Valores e características de transações imobiliárias efetivadas.</td><td><a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501">Prefeitura de São Paulo - arquivo XLSX</a></td></tr>
-      <tr><td>PGV - Lei 18.330/2025</td><td>Valor fiscal por metro quadrado e referência territorial.</td><td><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025">Legislação municipal e anexos</a></td></tr>
-    </tbody>
-  </table>
-  <div class="box azul"><strong>Onde estão os dados no projeto?</strong>
-    <p>O arquivo site/assets/model.json contém os parâmetros derivados do treinamento. O algoritmo está em train_model.py. As bases brutas de ITBI e PGV não estão incorporadas no pacote entregue e precisam ser obtidas nas fontes oficiais para reproduzir o treinamento.</p>
-  </div>
+  <p>O modelo é treinado com transações imobiliárias efetivadas no município de São Paulo e com a referência fiscal territorial correspondente. Somente transações classificadas como compra e venda são admitidas no conjunto de modelagem. A composição da base de treino não é publicada.</p>
   <h2>Limites de aplicação</h2>
   <ul>
     <li>Apartamentos residenciais localizados no município de São Paulo.</li>
@@ -348,8 +338,6 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
   <h2>Referências do aplicativo</h2>
   <ul>
     <li><a href="https://avm.heybrain.uk/">Aplicativo AVM SP</a></li>
-    <li><a href="https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501">Base municipal de ITBI</a></li>
-    <li><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025">Lei municipal 18.330/2025 - PGV</a></li>
     <li><a href="https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo=Resolu%C3%A7%C3%A3o&numero=4676">Resolução CMN 4.676 - texto consolidado</a></li>
   </ul>
 </section>

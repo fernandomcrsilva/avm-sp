@@ -41,7 +41,7 @@
 
   function riskList(v, stats, disabled) {
     const risks = [
-      "Os preços de treino são os valores declarados nas guias de ITBI, que podem diferir do preço efetivamente pago.",
+      "Os preços de treino são valores declarados em transações, que podem diferir do preço efetivamente pago.",
       "Condomínio, dormitórios, banheiros, vagas, andar, vista e estado de conservação não entram no modelo.",
       "A área informada é a privativa; as transações que treinaram o modelo trazem a área construída do cadastro do IPTU, que inclui a fração das áreas comuns. Por partir de uma definição menor de área, a estimativa tende a ficar abaixo do valor de mercado.",
     ];
@@ -114,8 +114,6 @@
         hyperparameters: model.hyperparameters,
         libraries: model.libraries,
         eda: model.eda,
-        source: model.source,
-        pgvSource: model.pgv_source,
       },
       risks: riskList(v, stats, disabled),
     };

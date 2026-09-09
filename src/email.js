@@ -185,12 +185,12 @@ export function compose(kind, data) {
       [`Documentos lidos: ${p.documentSource.fileName} — ${p.documentSource.method}.`, unreadableLine(data.unreadable || []), ignoredLine(data.ignored || [])].filter(Boolean).join(" "),
       "Premissas: apartamento residencial (conforme a matrícula); compra e venda; SFH / SBPE registrados no relatório, sem efeito na estimativa.",
       `Avisos:\n${list(report.risks)}`,
-      `O relatório completo está no Excel anexo. Metodologia: ${SITE}/metodologia`,
+      `O relatório completo está no Excel anexo.`,
       FOOTER,
     ]);
   }
   if (kind === "refused") {
-    return render(subject, [HEADER, `A estimativa foi recusada porque o imóvel está fora do domínio do modelo:\n${list(data.reasons.map((reason) => reason.text))}\nNão há relatório.`, `Metodologia e limites: ${SITE}/metodologia`, FOOTER]);
+    return render(subject, [HEADER, `A estimativa foi recusada porque o imóvel está fora do domínio do modelo:\n${list(data.reasons.map((reason) => reason.text))}\nNão há relatório.`, `Limites de aplicabilidade e termos de uso: ${SITE}/termos`, FOOTER]);
   }
   if (kind === "missing") {
     return render(subject, [HEADER, `Não foi possível estimar. Faltou:\n${list(data.missing)}`, unreadableLine(data.unreadable || []), ignoredLine(data.ignored || []), "Reenvie com os documentos completos, em um único e-mail.", FOOTER]);
