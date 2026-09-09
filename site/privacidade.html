@@ -12,16 +12,16 @@
   <meta property="og:locale" content="pt_BR">
   <meta property="og:url" content="https://avm.heybrain.uk/privacidade">
   <meta property="og:title" content="Privacidade — AVM SP">
-  <meta property="og:description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço quando você aciona a busca de CEP.">
+  <meta property="og:description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço na busca de CEP; e o que o canal por e-mail processa e registra.">
   <meta property="og:image" content="https://avm.heybrain.uk/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="AVM SP: quanto vale este apartamento em São Paulo? Faixa de valor com 80% de probabilidade.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Privacidade — AVM SP">
-  <meta name="twitter:description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço quando você aciona a busca de CEP.">
+  <meta name="twitter:description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço na busca de CEP; e o que o canal por e-mail processa e registra.">
   <meta name="twitter:image" content="https://avm.heybrain.uk/og-image.png">
-  <meta name="description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço quando você aciona a busca de CEP.">
+  <meta name="description" content="Política de privacidade do AVM SP: o cálculo roda no seu navegador, sem cookies, sem contas e sem envio de dados, exceto o endereço na busca de CEP; e o que o canal por e-mail processa e registra.">
   <title>Privacidade — AVM SP</title>
   <link rel="canonical" href="https://avm.heybrain.uk/privacidade">
   <link rel="stylesheet" href="assets/styles.css">
@@ -37,32 +37,32 @@
     <p class="eyebrow">Privacidade</p>
     <h1>Não coletamos os seus dados</h1>
     <article class="panel prose-panel">
-      <p class="lead">O AVM SP foi construído para funcionar <strong>inteiramente no seu navegador</strong>. Não há conta, não há cookie, não há banco de dados e não há servidor que receba o que você digita. Esta página explica a única exceção e o que o provedor de hospedagem vê.</p>
+      <p class="lead">O AVM SP foi construído para funcionar <strong>inteiramente no seu navegador</strong>. Não há conta, não há cookie, não há banco de dados e não há servidor que receba o que você digita. Esta página explica as duas exceções — a busca de CEP e a estimativa por e-mail — e o que o provedor de hospedagem vê.</p>
       <h2>1. O que fica só no seu navegador</h2>
       <ul>
         <li><strong>Os dados do imóvel</strong> (área, ano, padrão, valor fiscal, CEP): usados no cálculo, na tela, e descartados quando você fecha a aba. Nada é gravado em cookies, <em>localStorage</em> ou similares.</li>
-        <li><strong>A matrícula e o carnê de IPTU</strong> que você seleciona: são lidos localmente por PDF.js e, se forem imagem digitalizada, reconhecidos por OCR também local (Tesseract, com o idioma português embarcado no site). Os arquivos nunca saem do seu dispositivo.</li>
+        <li><strong>A matrícula e o documento de IPTU</strong> (carnê ou Certidão de Dados Cadastrais do Imóvel) que você seleciona: são lidos localmente por PDF.js e, se forem imagem digitalizada, reconhecidos por OCR também local (Tesseract, com o idioma português embarcado no site). Os arquivos nunca saem do seu dispositivo.</li>
         <li><strong>O resumo e o Excel</strong>: são gerados no navegador e salvos onde você escolher.</li>
       </ul>
-      <h2>2. A única exceção: localizar o CEP</h2>
+      <h2>2. Primeira exceção: localizar o CEP</h2>
       <p>Quando você <strong>termina de preencher ou alterar o endereço</strong> — ou clica em “Localizar” —, o endereço digitado é enviado ao serviço público Nominatim, da OpenStreetMap Foundation, para obter CEP e bairro. Nada é enviado enquanto você digita: a consulta ocorre ao sair do campo de endereço, uma vez por endereço. O serviço está sujeito à <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noreferrer">política de privacidade da OpenStreetMap Foundation</a>. Se preferir não enviar o endereço, digite o CEP você mesmo ou deixe em branco: ele não entra no cálculo do valor.</p>
       <h2>3. Avisos técnicos de erro</h2>
       <p>Se a página não conseguir carregar o modelo, se a leitura da matrícula falhar, se uma estimativa for recusada por sair do domínio do modelo ou se um erro interno acontecer, o navegador envia ao nosso servidor um <strong>aviso técnico anônimo</strong>: o tipo do evento, a mensagem de erro do próprio código, o nome do arquivo do site que falhou e a versão do modelo. <strong>Não</strong> vão área, ano, padrão, valor fiscal, CEP, endereço, o conteúdo da matrícula nem qualquer identificador seu. Esses avisos ficam sete dias nos registros da Cloudflare e servem só para corrigir defeitos.</p>
       <h2>4. O que a hospedagem registra</h2>
       <p>O site é servido pela Cloudflare. Como qualquer servidor web, ela processa endereço IP, navegador e páginas solicitadas para entregar os arquivos e se proteger de abuso, conforme a <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">política de privacidade da Cloudflare</a>. Não instalamos ferramentas de análise de audiência nem rastreadores de terceiros. Se isso mudar, esta página será atualizada antes.</p>
-      <h2>5. Estimativa por e-mail</h2>
-      <p>Remetentes previamente autorizados podem enviar a matrícula e o carnê de IPTU para <a href="mailto:avm@heybrain.uk">avm@heybrain.uk</a> e receber a estimativa por resposta automática. Nesse canal o processamento <strong>não</strong> acontece no seu navegador:</p>
+      <h2>5. Segunda exceção: estimativa por e-mail</h2>
+      <p>Remetentes previamente autorizados podem enviar a matrícula e o documento de IPTU (carnê ou Certidão de Dados Cadastrais do Imóvel) para <a href="mailto:avm@heybrain.uk">avm@heybrain.uk</a> e receber a estimativa por resposta automática. Nesse canal o processamento <strong>não</strong> acontece no seu navegador:</p>
       <ul>
         <li><strong>O que é recebido:</strong> a mensagem e os anexos enviados a esse endereço.</li>
-        <li><strong>Onde é processado:</strong> nos servidores da Cloudflare (Workers), em memória, durante o processamento daquela mensagem. O texto dos PDFs é extraído pelo serviço de conversão de documentos da Cloudflare (Workers AI). Páginas escaneadas e imagens são transcritas por um modelo de visão do Workers AI, também da Cloudflare, que recebe a imagem da página e devolve o texto e que, conforme a política da Cloudflare, não usa nem retém a imagem. Nada é gravado: nem a mensagem, nem os anexos, nem o relatório.</li>
+        <li><strong>Onde é processado:</strong> nos servidores da Cloudflare (Workers), em memória, durante o processamento daquela mensagem — em geral menos de um minuto; até dois minutos quando há OCR. O texto dos PDFs é extraído pelo serviço de conversão de documentos da Cloudflare (Workers AI). Páginas escaneadas e imagens são transcritas por um modelo de visão do Workers AI, também da Cloudflare, que recebe a imagem da página e devolve o texto e que, conforme a política da Cloudflare, não usa nem retém a imagem. Nós não gravamos nada: nem a mensagem, nem os anexos, nem o relatório. A pré-visualização de mensagens enviadas que a Cloudflare oferece para o domínio está desligada.</li>
         <li><strong>O que sai:</strong> o endereço do imóvel, para o Nominatim (OpenStreetMap), como no site. Nenhum dado vai a serviços fora da Cloudflare e da OpenStreetMap Foundation.</li>
-        <li><strong>O que é registrado:</strong> linhas técnicas sem dados pessoais — resultado (relatório, recusa, faltou), quantidade de documentos e tempo de processamento — por sete dias.</li>
+        <li><strong>O que é registrado:</strong> nos nossos registros técnicos, linhas sem dados pessoais — resultado (relatório, recusa, faltou), quantidade de documentos e tempo de processamento — por sete dias. O serviço de e-mail da Cloudflare, por sua vez, mantém o registro de entrega de cada mensagem recebida e respondida — endereço do remetente, destinatário, assunto e situação da entrega, sem o conteúdo — por até 31 dias, conforme a <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">política de privacidade da Cloudflare</a>. Evite dados pessoais no assunto.</li>
         <li><strong>Quem pode usar:</strong> só remetentes autorizados; mensagens de outros endereços são devolvidas sem que os anexos sejam abertos.</li>
       </ul>
-      <p>Quando há OCR, o relatório e a resposta avisam que parte do texto foi transcrita automaticamente e deve ser conferida no documento original. A resposta pode levar até dois minutos nesse caso.</p>
+      <p>Quando há OCR, o relatório e a resposta avisam que parte do texto foi transcrita automaticamente e deve ser conferida no documento original.</p>
       <p>Ao enviar, o remetente declara que se trata de apartamento residencial em compra e venda e aceita os <a href="/termos">termos de uso</a>. A resposta é uma estimativa estatística, não um laudo.</p>
       <h2>6. Seus direitos e contato</h2>
-      <p>Como não guardamos dados pessoais, não há o que acessar, corrigir ou excluir do nosso lado. Para qualquer dúvida sobre esta política, ou para apontar um erro no serviço, escreva para <a href="mailto:contato@heybrain.uk">contato@heybrain.uk</a>. Responsável pelo serviço: HeyBrain (heybrain.uk). Esta política segue a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>
+      <p>Como não guardamos dados pessoais em sistema nosso, não há o que acessar, corrigir ou excluir do nosso lado; os registros de entrega do serviço de e-mail da Cloudflare expiram sozinhos em 31 dias. Para qualquer dúvida sobre esta política, ou para apontar um erro no serviço, escreva para <a href="mailto:contato@heybrain.uk">contato@heybrain.uk</a>. Responsável pelo serviço: HeyBrain (heybrain.uk). Esta política segue a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>
     </article>
   </main>
   <footer class="app-footer">

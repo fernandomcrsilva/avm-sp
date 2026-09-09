@@ -71,6 +71,7 @@ table { width: 100%; border-collapse: collapse; margin: 10pt 0 12pt; font-size: 
 th { padding: 6pt 8pt; background: var(--azul); color: #fff; text-align: left; font-size: 8.5pt; }
 td { padding: 6pt 8pt; border-bottom: 0.75pt solid var(--linha); vertical-align: top; }
 tbody tr:nth-child(even) td { background: var(--zebra); }
+tbody tr { page-break-inside: avoid; }
 table.etapas td { width: 25%; }
 
 /* Passos numerados */
@@ -187,7 +188,7 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <p>Ao terminar de preencher ou alterar o endereço, o aplicativo consulta o OpenStreetMap e preenche CEP e bairro. O botão Localizar repete a consulta quando você quiser. Confirme o resultado, principalmente em condomínios novos ou endereços incompletos.</p>
   </div></div>
   <div class="box laranja"><strong>Documento digitalizado</strong>
-    <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. O documento é lido no próprio navegador e não é enviado a servidor algum.</p>
+    <p>PDFs que já contêm texto tendem a produzir melhor resultado. Matrículas compostas apenas por imagens dependem de OCR e sempre devem passar por conferência humana. No aplicativo, o documento é lido no próprio navegador e não é enviado a servidor algum; no envio por e-mail (capítulo 10) o processamento acontece no servidor.</p>
   </div>
   <h2>A área do cálculo</h2>
   <table>
@@ -351,6 +352,50 @@ figcaption { margin-top: 6pt; color: #6f777f; font-size: 7.5pt; }
     <li><a href="https://legislacao.prefeitura.sp.gov.br/lei-18330-de-11-de-novembro-de-2025">Lei municipal 18.330/2025 - PGV</a></li>
     <li><a href="https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo=Resolu%C3%A7%C3%A3o&numero=4676">Resolução CMN 4.676 - texto consolidado</a></li>
   </ul>
+</section>
+
+<section>
+  <h1>10. Envio por e-mail</h1>
+  <p>Para quem recebe os documentos por e-mail e não usa a tela: um e-mail para <a href="mailto:avm@heybrain.uk">avm@heybrain.uk</a> com a matrícula e o documento de IPTU devolve, sem intervenção humana, a estimativa no corpo da mensagem e o relatório em Excel — o mesmo que o aplicativo gera. O canal só aceita mensagens de endereços previamente autorizados pelo responsável pelo serviço; para autorizar um endereço, escreva para <a href="mailto:contato@heybrain.uk">contato@heybrain.uk</a>.</p>
+  <h2>O que anexar</h2>
+  <table>
+    <thead><tr><th style="width:30%">Documento</th><th>O que precisa conter</th></tr></thead>
+    <tbody>
+      <tr><td>Matrícula (certidão de ônus reais ou matrícula atualizada)</td><td>Identificação do imóvel como apartamento, endereço e <strong>área privativa</strong>. De preferência o PDF digital emitido pelo cartório.</td></tr>
+      <tr><td>Documento de IPTU</td><td>Notificação de Lançamento (carnê) ou <strong>Certidão de Dados Cadastrais do Imóvel</strong>, do portal da Prefeitura: número do contribuinte (SQL), ano da construção corrigido, padrão da construção e valor do m² de terreno.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><strong>Um imóvel por e-mail.</strong> Mais de uma matrícula ou mais de um IPTU na mesma mensagem é devolvido sem cálculo.</li>
+    <li>Formatos: PDF, PNG, JPEG ou WebP. Até 6 anexos de 10 MB (imagens: entre 20 KB e 5 MB); mensagem de até 20 MB.</li>
+    <li>PDF com texto é lido direto. Escaneado ou foto passa por OCR (até 4 páginas por documento).</li>
+    <li>Até 3 e-mails por minuto por remetente.</li>
+  </ul>
+  <h2>O que volta e em quanto tempo</h2>
+  <p>A resposta chega na mesma conversa (assunto "Re: …"), em geral em <strong>menos de um minuto</strong>; com OCR, em até dois minutos. O corpo traz a identificação da avaliação, o imóvel, os dados usados e de qual documento saiu cada um, a faixa de 80% de probabilidade, o valor central e por m², as premissas e os avisos. O Excel anexo é o mesmo relatório do aplicativo (capítulo 8). Guarde o e-mail e o Excel junto com os documentos enviados.</p>
+  <div class="box laranja"><strong>Documentos escaneados exigem conferência</strong>
+    <p>Quando o texto veio de OCR, a resposta e o relatório avisam. Confira ano da construção, padrão, valor do m² de terreno e área privativa no documento original antes de usar o resultado.</p>
+  </div>
+  <h2>Cada resposta e o que fazer</h2>
+  <table>
+    <thead><tr><th style="width:44%">Mensagem recebida</th><th>O que significa e o que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Relatório com faixa de valor e Excel anexo</td><td>Estimativa concluída. Leia os avisos: são os mesmos alertas da tela.</td></tr>
+      <tr><td>"A estimativa foi recusada porque o imóvel está fora do domínio do modelo"</td><td>Área, idade ou valor fora dos limites do modelo (capítulo 2), ou matrícula que não descreve um apartamento; o motivo vem listado na resposta. Não há relatório; encaminhe para análise técnica (capítulo 9).</td></tr>
+      <tr><td>"Não foi possível estimar. Faltou: …"</td><td>O dado listado não foi encontrado nos documentos. Confira se o IPTU anexado é do mesmo imóvel e traz o campo; reenvie tudo em um único e-mail.</td></tr>
+      <tr><td>"Não foi possível ler: … (sem texto legível)"</td><td>O arquivo não tem texto e o OCR não conseguiu transcrever (foto ruim, página em branco, arquivo protegido). Envie o PDF original digital.</td></tr>
+      <tr><td>"Foi encontrada mais de uma matrícula" / "Foi encontrado mais de um documento de IPTU"</td><td>Dois imóveis na mesma mensagem. Envie um imóvel por e-mail.</td></tr>
+      <tr><td>"Ignorados: …" (no fim de uma resposta)</td><td>Anexos que não são PDF nem imagem (planilhas, .docx, logotipos de assinatura), imagens fora da faixa de 20 KB a 5 MB e arquivos acima de 10 MB. Não entram no cálculo: se um deles era a matrícula ou o IPTU, reenvie em PDF ou em imagem menor.</td></tr>
+      <tr><td>Mensagem devolvida pelo servidor: "Remetente não autorizado para o AVM SP."</td><td>O endereço não está na lista. Peça a inclusão a contato@heybrain.uk e reenvie do endereço autorizado.</td></tr>
+      <tr><td>Devolvida: "Limite de envios atingido; aguarde um minuto."</td><td>Mais de 3 e-mails no mesmo minuto. Aguarde e reenvie.</td></tr>
+      <tr><td>Devolvida: "Mensagem grande demais (máximo 20 MB)."</td><td>Reduza os anexos: PDF original em vez de fotos, ou menos páginas.</td></tr>
+      <tr><td>Devolvida: "Erro interno ao processar. Tente novamente." ou "Falha temporária ao responder. Reenvie em alguns minutos."</td><td>Falha do lado do serviço. Reenvie; se persistir, escreva para contato@heybrain.uk.</td></tr>
+      <tr><td>Nada em 5 minutos, sem devolução</td><td>Confira o destinatário (avm@heybrain.uk) e se o envio saiu do endereço autorizado. Respostas automáticas (fora do escritório, listas) são descartadas sem aviso. Persistindo, contato@heybrain.uk.</td></tr>
+    </tbody>
+  </table>
+  <div class="box azul"><strong>Privacidade</strong>
+    <p>Os anexos são processados em memória nos servidores da Cloudflare e não são armazenados; nada volta anexado além do Excel. O que fica registrado e por quanto tempo está em <a href="https://avm.heybrain.uk/privacidade">avm.heybrain.uk/privacidade</a>. Evite dados pessoais no assunto.</p>
+  </div>
 </section>
 
 </body>
