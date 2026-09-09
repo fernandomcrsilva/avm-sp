@@ -1,8 +1,8 @@
 {
-  // Cloudflare Workers Static Assets + um Worker script mínimo (src/worker.js) que só atende POST /api/erro.
+  // Cloudflare Workers Static Assets + um Worker (src/worker.js): POST /api/erro e o handler email() da estimativa por e-mail.
   // Os cabeçalhos de _headers valem para os assets; as respostas do script trazem os seus próprios (no código).
   "name": "avm-sp",
-  "main": "src/worker.js", // só POST /api/erro (avisos técnicos anônimos → Workers Logs); o resto é asset
+  "main": "src/worker.js", // POST /api/erro (avisos técnicos anônimos → Workers Logs) e email() (avm@heybrain.uk); o resto é asset
   "compatibility_date": "2026-09-07",
   "account_id": "ee92a19319ea452a3e1b995058bb5a33",
   // Sem build.command: o dist/ vem de `npm run build`, rodado antes (CI: passo sem token; local: npm run check).
@@ -17,8 +17,10 @@
     { "name": "ERRO_RL", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
     { "name": "EMAIL_RL", "namespace_id": "1002", "simple": { "limit": 3, "period": 60 } } // por remetente autorizado
   ],
-  // Workers Logs (retenção de 7 dias no plano Paid) com logs de invocação: quem chamou /api/erro e o que o front reportou.
-  "observability": { "enabled": true, "logs": { "invocation_logs": true, "head_sampling_rate": 1 } },
+  // Workers Logs (retenção de 7 dias no plano Paid) só com as linhas próprias (front_error, email_*). Sem logs de
+  // invocação: o registro automático de um evento de e-mail traz o envelope (remetente e destinatário), e a
+  // privacidade promete linhas técnicas sem dados pessoais. Para /api/erro, a linha própria já tem tudo que se usa.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false, "head_sampling_rate": 1 } },
   // Produção: Custom Domain (cria o DNS e emite o certificado no deploy). Subdomínio, sem www.
   "routes": [{ "pattern": "avm.heybrain.uk", "custom_domain": true }],
   // avm-sp.heybrain.workers.dev e os aliases de preview ficam ligados (default); noindex via _headers.

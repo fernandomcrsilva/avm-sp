@@ -10,6 +10,7 @@ Produção: https://avm.heybrain.uk · Metodologia: https://avm.heybrain.uk/meto
 |---|---|
 | [DEPLOY.md](DEPLOY.md) | Arquitetura, decisões e justificativas |
 | [RUNBOOK.md](RUNBOOK.md) | Publicar, reverter, atualizar o modelo, operar |
+| [docs/superpowers/specs/2026-09-08-email-avm-design.md](docs/superpowers/specs/2026-09-08-email-avm-design.md) | Canal por e-mail (`avm@heybrain.uk`): arquitetura, entregas, segurança, custo |
 | [docs/aceite-2026-09-07.md](docs/aceite-2026-09-07.md) | Checklist de aceite com evidências e relatório final |
 | [docs/security-audit-2026-09-07.md](docs/security-audit-2026-09-07.md) | Auditoria de segurança (8 agentes, 28 achados) |
 | [docs/aceite-seguranca-2026-09-07.md](docs/aceite-seguranca-2026-09-07.md) | Fechamento da auditoria: o que foi corrigido, em qual PR, e o que só o dono faz |
@@ -22,7 +23,7 @@ Produção: https://avm.heybrain.uk · Metodologia: https://avm.heybrain.uk/meto
 - `src/worker.js` Worker: `POST /api/erro` e o handler `email()` da estimativa por e-mail (`src/email.js` é o pipeline, `src/ocr.js` o OCR via Workers AI; `site/assets/report.js` monta o relatório para site e e-mail)
 - `train_model.py` treino (Ridge hedônico, 15 modelos, conformal); `data/sources.lock.json` hashes das fontes
 - `scripts/` validador do `model.json`, fixture de paridade, geração das imagens
-- `tests/` paridade Python↔JS, limites de aplicabilidade, validador
+- `tests/` paridade Python↔JS, limites de aplicabilidade, validador, canal de e-mail (pipeline, OCR, leitores de IPTU), consistência do manual
 - `.github/workflows/` CI/CD (`ci.yml`) e uptime (`uptime.yml`)
 
 ## Rodar
