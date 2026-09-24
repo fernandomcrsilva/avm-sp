@@ -10,7 +10,7 @@
   Tudo em memória, na invocação; nada é gravado. Escaneados passam por OCR no Workers AI. Spec:
   [docs/superpowers/specs/2026-09-08-email-avm-design.md](docs/superpowers/specs/2026-09-08-email-avm-design.md).
 - **Onde**: Cloudflare Workers Static Assets, Worker `avm-sp`, conta HeyBrain!, Custom Domain `avm.heybrain.uk`.
-  Preview em `*.avm-sp.heybrain.workers.dev` com `X-Robots-Tag: noindex`.
+  Atrás do Cloudflare Access desde 2026-09-24: só o e-mail do dono entra; `workers.dev` e preview desligados.
 - **Como publica**: PR → CI (`check`) → merge em `main` → Cloudflare Workers Builds (`npm run build` + `npx wrangler deploy`) → produção.
   Rollback = `versions deploy <anterior>@100%` ou `wrangler rollback`. Detalhes no [RUNBOOK.md](RUNBOOK.md).
 
@@ -69,6 +69,7 @@ e `tests/parity_fixture.json` (predições do scikit-learn para 17 imóveis × 1
 | Sem Cloudflare Web Analytics | Beacon de terceiro incompatível com a CSP fechada e com "sem dependência de CDN". Métricas de requisição do Worker bastam. |
 | Worker para `/api/erro` e para o handler `email()` | Sem backend de predição para o site, mas o prompt pede captura de erro de front e a licitação pede o canal por e-mail. `run_worker_first` só em `/api/*`; assets e `_headers` intactos. Payload de `/api/erro` sem dado do imóvel. |
 | Uptime por GitHub Actions | Health Checks da Cloudflare só a partir do Pro. Cron de 30 min em `/version.json`. |
+| Site só para o dono (Cloudflare Access), sem túnel | Decisão do dono em 2026-09-24. O Worker já roda na Cloudflare, então basta o Access na frente do Custom Domain; Cloudflare Tunnel só serviria para origem fora da Cloudflare. `workers.dev` e preview desligados no `wrangler.jsonc` porque escapariam do Access. Sem service token: o uptime confere que o domínio responde e continua fechado (302 para o login). O handler `email()` não passa pelo Access. |
 | Branch `main` protegida com `check` obrigatório, inclusive para admins | Todo código entra por PR, e é o merge em `main` que publica. Sem deploy da máquina como caminho normal. |
 | Build e deploy no Cloudflare Workers Builds, não no GitHub Actions | O repositório está ligado ao Worker: cada push em `main` roda `npm run build` e `npx wrangler deploy`. O CI fica só com o `check` e não guarda token da Cloudflare. Em troca, produção sai a cada merge — o portão é o PR. |
 | Matrículas de teste fora do git | 20 PDFs reais com CPF/RG de terceiros; LGPD. `testes/` ignorado. |
