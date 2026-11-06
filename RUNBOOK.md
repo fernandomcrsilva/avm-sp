@@ -1,12 +1,12 @@
 # RUNBOOK — AVM SP (avm.heybrain.uk)
 
 Site estático em Cloudflare Workers Static Assets + um Worker (`src/worker.js`): `POST /api/erro` e o handler `email()` da estimativa por e-mail (`avm@heybrain.uk`).
-Repositório: https://github.com/fernandomcrsilva/avm-sp · Worker: `avm-sp` (conta HeyBrain!) · Produção: https://avm.heybrain.uk · Acesso: só o dono (Cloudflare Access, ver "Acesso"); sem `workers.dev` nem preview.
+Repositório: https://github.com/fernandomcrsilva/avm-sp · Worker: `avm-sp` (conta HeyBrain!) · Produção: https://avm.heybrain.uk · Preview: `*.avm-sp.heybrain.workers.dev` (noindex).
 
 ## O que está no ar
 
 ```bash
-# https://avm.heybrain.uk/version.json no navegador, logado no Access ("Acesso"): git_sha, built_at, model_version, …
+curl -s https://avm.heybrain.uk/version.json   # git_sha, built_at, model_version, model_trained_at, model_sha256
 npx wrangler deployments list                   # versão ativa e histórico
 npx wrangler versions list                      # versões enviadas (com tag/mensagem)
 ```
@@ -112,21 +112,6 @@ via wasm carregado por URL, que o Worker não tem, e a resposta vira "sem texto 
   só `Content-Type: application/json` (415), `Content-Length` obrigatório e ≤ 2048 (413), 5 avisos/min por IP pelo binding
   `ERRO_RL` do `wrangler.jsonc` (429). Teste local: `npx wrangler dev` e os `fetch` listados em `docs/aceite-seguranca-*.md`.
 
-## Acesso
-
-Desde 2026-09-24 o site só abre para `heybrain2025@gmail.com`. Quem mais abrir `avm.heybrain.uk` cai no login do
-Cloudflare Access (`heybrain.cloudflareaccess.com`), que manda um código por e-mail e só aceita o endereço liberado.
-
-- Onde: Zero Trust → Access controls → Applications → **avm-sp** (self-hosted, `avm.heybrain.uk`, sessão de 24 h).
-  Política própria do app `avm-sp só heybrain2025` (Allow, e-mail). Para liberar mais alguém, acrescente o e-mail ali.
-- Nenhuma outra credencial entra: sem service token, sem bypass de caminho (decisão do dono, 2026-09-24). Por isso o
-  uptime não lê o site: confere que `/` e `/version.json` respondem 302 para o login do Access. Um 200 ali quer dizer
-  que o site ficou público — o job falha e o GitHub avisa.
-- `workers.dev` e preview ficam desligados no `wrangler.jsonc` (`workers_dev`, `preview_urls`): seriam uma porta sem Access.
-- O canal por e-mail não passa pelo Access (é SMTP, não HTTP). A resposta de recusa cita `/termos`, que fica fechada
-  como o resto (decisão do dono): quem recebe não abre a página.
-- Reabrir ao público: apagar o app **avm-sp** (vale na hora, sem deploy).
-
 ## Estimativa por e-mail (avm@heybrain.uk)
 
 Handler `email()` em `src/worker.js`; pipeline em `src/email.js`; OCR em `src/ocr.js`; spec em `docs/superpowers/specs/2026-09-08-email-avm-design.md`; o que o remetente vê está no capítulo 10 do manual (`/manual`).
@@ -171,8 +156,8 @@ O terminal do `wrangler dev` mostra a linha `email_processed` (`outcome: report`
 - Workers Logs (retenção de 7 dias no plano Paid; confira no dashboard se o plano mudar; **sem logs de invocação** desde 2026-09-08 — o registro automático de um e-mail traz o remetente, e a privacidade promete linhas sem dados pessoais; sem eles, uma exceção não capturada no `fetch()` do site deixa de aparecer — os caminhos de e-mail têm try/catch e continuam logando (`outcome: error`, `email_send_failed`)): dashboard → Workers & Pages → avm-sp → Logs. Avisos do front chegam como
   `{"event":"front_error","kind":...}` com `kind` em `model_load_failed | js_error | unhandled_rejection | ocr_failed | refused`.
   Nunca contêm dados do imóvel; em `refused` só o código do limite.
-- Uptime: `.github/workflows/uptime.yml` a cada 30 min confere que o site responde e continua fechado ("Acesso"); falha = e-mail do GitHub. Rodar à mão: Actions → uptime → Run workflow.
-- Lighthouse local: `CHROME_PATH=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome npx lighthouse@12.8.2 http://localhost:8787/ --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate`. Contra o `npx wrangler dev`: produção só mostra o login do Access.
+- Uptime: `.github/workflows/uptime.yml` a cada 30 min (falha = e-mail do GitHub). Rodar à mão: Actions → uptime → Run workflow.
+- Lighthouse local: `CHROME_PATH=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome npx lighthouse@12.8.2 https://avm.heybrain.uk/ --form-factor=mobile --screenEmulation.mobile --throttling-method=simulate`.
 
 ## Desenvolvimento local
 

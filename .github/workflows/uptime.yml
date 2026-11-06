@@ -1,7 +1,6 @@
 name: uptime
-# Checagem sintética a cada 30 min. O site está atrás do Cloudflare Access e só o e-mail do dono entra (RUNBOOK
-# "Acesso"), sem service token: a checagem confere que o domínio responde E continua fechado — 302 para o login
-# do Access. Qualquer outra resposta (200 = aberto ao público, 5xx, timeout) falha o job e o GitHub avisa o dono.
+# Checagem sintética: a cada 30 min, GET https://avm.heybrain.uk/version.json tem de responder 200 com
+# model_version. Falha → o job falha e o GitHub avisa por e-mail o dono do repositório.
 on:
   schedule:
     - cron: "*/30 * * * *"
@@ -12,11 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: / e /version.json redirecionam para o login do Access
+      - name: GET /version.json e /
         run: |
           set -eu
-          for path in / /version.json; do
-            out=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code} %{redirect_url}' "https://avm.heybrain.uk$path")
-            echo "$path: $out"
-            case "$out" in "302 https://heybrain.cloudflareaccess.com/"*) ;; *) echo "esperado 302 para o login do Access"; exit 1 ;; esac
-          done
+          curl -fsS --max-time 20 -o version.json -w 'version.json: %{http_code} em %{time_total}s\n' https://avm.heybrain.uk/version.json
+          grep -q '"model_version"' version.json
+          cat version.json
+          curl -fsS --max-time 20 -o /dev/null -w 'index: %{http_code} em %{time_total}s\n' https://avm.heybrain.uk/
