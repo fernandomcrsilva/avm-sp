@@ -52,7 +52,7 @@
       if (/OCR/.test(s.method || "")) risks.push("Parte do texto dos documentos foi obtida por OCR (Workers AI) e deve ser conferida no documento original antes de qualquer uso.");
     }
     if (v.enabledVariables.includes("fiscal")) {
-      risks.push("O VM2T deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; no treino, quadras com várias faces entraram pela mediana.");
+      risks.push("O VM2T informado deve ser o do trecho de logradouro e da quadra (SQ) do imóvel; um valor de outra face ou de outra quadra muda a estimativa.");
     }
     if (disabled.length) {
       risks.push(`Modelo reduzido: ${disabled.map((item) => VARIABLE_LABELS[item]).join(", ")} ${disabled.length === 1 ? "não entrou" : "não entraram"} no cálculo, e a faixa é a desse modelo menor.`);
