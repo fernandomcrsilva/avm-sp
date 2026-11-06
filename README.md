@@ -18,12 +18,13 @@ Produção: https://avm.heybrain.uk
 
 ## Resumo técnico
 
-Modelo de avaliação automática (AVM) de apartamentos residenciais em São Paulo. Ele devolve uma estimativa pontual e uma faixa de 80% de probabilidade, e a inferência roda inteira no navegador.
+O AVM SP estima o valor de apartamentos residenciais em São Paulo e mostra, junto com a estimativa, uma faixa onde o valor real deve cair com 80% de probabilidade. Todo o cálculo é feito no navegador.
 
-- **Modelo:** regressão Ridge hedônica sobre ln(preço), com um modelo para cada subconjunto das entradas (área, idade, padrão construtivo do IPTU e valor fiscal da PGV), 15 modelos ao todo. Cada subconjunto tem seu próprio intervalo conformal, então o app continua funcionando quando o usuário não sabe alguma entrada.
-- **Validação:** divisão temporal, com 70% para treino, 15% para calibração e 15% para teste.
-- **Resultados:** no modelo completo, com 2.739 transações de teste, R² (log) de 0,82, MAPE de 21,2%, erro percentual mediano de 17,1% e cobertura empírica de 80,7% para o intervalo de 80%.
-- **Engenharia:** o treino em Python (pandas e scikit-learn) exporta um `model.json`, que um runtime em JS reproduz. O CI confere a paridade entre Python e JS, os limites de aplicabilidade e o esquema do modelo. O app roda no Cloudflare Workers, e um canal por e-mail usa OCR do Workers AI para ler documentos do imóvel.
+O modelo é uma regressão Ridge hedônica sobre o logaritmo do preço. Nem todo usuário sabe todos os dados do imóvel (área, idade, padrão construtivo do IPTU e valor fiscal da PGV), então existe um modelo para cada combinação possível dessas entradas, 15 ao todo, cada um com o seu próprio intervalo conformal. Assim o app continua respondendo mesmo quando falta alguma informação.
+
+As transações foram separadas em ordem cronológica: 70% para treino, 15% para calibrar os intervalos e 15% para teste. Nas 2.739 transações de teste, o modelo completo teve R² de 0,82 na escala logarítmica, erro percentual médio (MAPE) de 21,2% e erro percentual mediano de 17,1%. O valor real caiu dentro da faixa de 80% em 80,7% dos casos.
+
+O treino é feito em Python, com pandas e scikit-learn, e gera um `model.json` que o site executa em JavaScript. O CI confere se Python e JavaScript chegam aos mesmos números, se os limites de aplicabilidade são respeitados e se o arquivo do modelo segue o esquema. O site roda no Cloudflare Workers. Há também um canal por e-mail, que lê documentos do imóvel com o OCR do Workers AI.
 
 ## Layout
 
